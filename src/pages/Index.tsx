@@ -38,9 +38,13 @@ const Index = () => {
                 <Plus className="w-4 h-4 mr-2" />
                 Tạo hóa đơn mới
               </Button>
-              <Button variant="outline" onClick={() => navigate('/visual-builder')}>
+              <Button variant="outline" onClick={() => navigate('/invoice-builder')} className="border-purple-200 hover:bg-purple-50">
                 <Settings className="w-4 h-4 mr-2" />
-                Visual Builder
+                Invoice Builder 
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/visual-builder')}>
+                <Edit className="w-4 h-4 mr-2" />
+                Simple Builder
               </Button>
             </div>
           </div>
