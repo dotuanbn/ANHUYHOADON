@@ -1,8 +1,14 @@
-# Welcome to your Lovable project
+# 🏢 Bếp An Huy - Hệ thống Quản lý Hóa đơn
 
-## Project info
+## 🌐 Production URL
 
-**URL**: https://lovable.dev/projects/311960ec-374f-44e2-ac82-a85b40615bfe
+**🚀 Live Site**: https://anhuyhoadon-g3gc.vercel.app
+
+## 📦 Project Info
+
+- **Platform**: Vercel
+- **Repository**: https://github.com/dotuanbn/ANHUYHOADON
+- **Status**: ✅ Deployed & Running
 
 ## How can I edit this code?
 
@@ -60,14 +66,34 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## 🚀 How to deploy updates?
 
-Simply open [Lovable](https://lovable.dev/projects/311960ec-374f-44e2-ac82-a85b40615bfe) and click on Share -> Publish.
+**Method 1: Using Script (Recommended)**
+```bash
+# Double-click this file:
+deploy-update.bat
 
-## Can I connect a custom domain to my Lovable project?
+# Select [2] to update
+```
 
-Yes, you can!
+**Method 2: Manual**
+```bash
+git add .
+git commit -m "Your update description"
+git push
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Vercel will automatically deploy in ~30 seconds! ⚡
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 📚 Documentation
+
+- 📖 **[THONG_TIN_PROJECT.md](./THONG_TIN_PROJECT.md)** - Complete project info
+- ⚡ **[UPDATE_NHANH.md](./UPDATE_NHANH.md)** - Quick update guide
+- 📋 **[CHEATSHEET.md](./CHEATSHEET.md)** - Quick reference
+- 🌐 **[DOI_TEN_MIEN_VERCEL.md](./DOI_TEN_MIEN_VERCEL.md)** - Change domain guide
+
+## 🔗 Important Links
+
+- **Production**: https://anhuyhoadon-g3gc.vercel.app
+- **Dashboard**: https://vercel.com/dashboard
+- **Repository**: https://github.com/dotuanbn/ANHUYHOADON

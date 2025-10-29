@@ -1,9 +1,15 @@
 # 🌐 HƯỚNG DẪN ĐỔI TÊN MIỀN VERCEL
 
-## Tên miền hiện tại:
-`anhuyhoadon-g3gc.vercel.app` ❌ (khó nhớ)
+## ✅ Tên miền hiện tại:
+`anhuyhoadon-g3gc.vercel.app` 
 
-## Tên miền đề xuất:
+**Web đang hoạt động tại**: https://anhuyhoadon-g3gc.vercel.app
+
+---
+
+## 💡 Muốn đổi tên cho dễ nhớ hơn?
+
+## Tên miền đề xuất (tùy chọn):
 - `bepanhuy-invoice.vercel.app` ✅ (dễ nhớ)
 - `bepanhuy.vercel.app` ✅ (ngắn gọn)
 - `anhuy-hoadon.vercel.app` ✅ (rõ ràng)

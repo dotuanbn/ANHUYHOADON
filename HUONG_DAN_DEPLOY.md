@@ -1,6 +1,14 @@
 # 🚀 HƯỚNG DẪN DEPLOY WEB MIỄN PHÍ
 
-## Phương án 1: Deploy với VERCEL (Khuyến nghị ⭐⭐⭐⭐⭐)
+## ✅ PROJECT ĐÃ DEPLOY THÀNH CÔNG!
+
+**🌐 Domain**: https://anhuyhoadon-g3gc.vercel.app  
+**📦 Repository**: https://github.com/dotuanbn/ANHUYHOADON  
+**🔧 Platform**: Vercel
+
+---
+
+## Phương án 1: Deploy với VERCEL (Đã hoàn thành ✅)
 
 ### Bước 1: Chuẩn bị Git Repository
 ```bash

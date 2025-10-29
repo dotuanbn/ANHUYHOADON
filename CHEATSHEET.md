@@ -1,9 +1,10 @@
 # 📋 CHEATSHEET - GHI NHỚ NHANH
 
-## 🌐 Domain của bạn
+## 🌐 DOMAIN CỦA BẠN (QUAN TRỌNG!)
 ```
 https://anhuyhoadon-g3gc.vercel.app
 ```
+👆 **Copy link này để share với khách hàng!**
 
 ---
 

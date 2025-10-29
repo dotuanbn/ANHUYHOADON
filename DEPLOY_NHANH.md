@@ -1,38 +1,52 @@
 # 🚀 HƯỚNG DẪN DEPLOY NHANH - 5 PHÚT
 
-## 🎯 Cách dễ nhất: VERCEL (Khuyến nghị)
+## ✅ ĐÃ DEPLOY THÀNH CÔNG!
 
-### Bước 1: Push code lên GitHub (nếu chưa có)
+**🌐 Domain của bạn**: https://anhuyhoadon-g3gc.vercel.app
+
+---
+
+## 📝 Lịch sử Deploy
+
+### Lần đầu tiên đã làm:
 
 ```bash
-# Tạo repository mới trên github.com, sau đó:
+# Đã push code lên GitHub:
 git init
 git add .
 git commit -m "Ready to deploy"
 git branch -M main
-git remote add origin https://github.com/TÊN_CỦA_BẠN/TÊN_REPO.git
+git remote add origin https://github.com/dotuanbn/ANHUYHOADON.git
 git push -u origin main
 ```
 
-### Bước 2: Deploy lên Vercel
+### Deploy lên Vercel đã hoàn thành:
 
-1. 🌐 Vào: **https://vercel.com/signup**
-2. 🔑 Đăng nhập bằng **GitHub**
-3. ➕ Click **"Add New..."** → **"Project"**
-4. 📦 Chọn repository vừa tạo
-5. ⚙️ Vercel tự động detect Vite - **Không cần thay đổi gì**
-6. 🚀 Click **"Deploy"**
+1. ✅ Đã đăng nhập Vercel bằng GitHub
+2. ✅ Đã import repository: **ANHUYHOADON**
+3. ✅ Vercel tự động detect Vite
+4. ✅ Deploy thành công!
 
-### ✅ XONG! Chờ 1-2 phút
+### ✅ HOÀN THÀNH!
 
-Web của bạn sẽ có địa chỉ: `https://ten-project.vercel.app`
+**Web của bạn đã online**: https://anhuyhoadon-g3gc.vercel.app
 
 ---
 
-## 🔄 CẬP NHẬT PHIÊN BẢN MỚI
+## 🔄 CẬP NHẬT PHIÊN BẢN MỚI (Bây giờ dùng cái này!)
 
 **SIÊU ĐƠN GIẢN** - Chỉ cần push code:
 
+### Cách 1: Dùng Script (Khuyến nghị)
+```bash
+# Double-click file:
+deploy-update.bat
+
+# Chọn [2] - Update lên Vercel
+# Nhập mô tả → Enter
+```
+
+### Cách 2: Manual
 ```bash
 # Sau khi sửa code:
 git add .
@@ -41,6 +55,8 @@ git push
 
 # Vercel tự động deploy sau ~30 giây!
 ```
+
+**✅ Xem kết quả tại**: https://anhuyhoadon-g3gc.vercel.app
 
 ---
 
