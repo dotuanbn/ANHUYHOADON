@@ -200,48 +200,129 @@ const Settings = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset input để có thể import lại cùng file nếu cần
+    const input = event.target;
+
+    // Kiểm tra định dạng file
+    if (!file.name.endsWith('.json')) {
+      toast({
+        title: "Lỗi định dạng file",
+        description: "Vui lòng chọn file JSON (.json)",
+        variant: "destructive",
+      });
+      input.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const result = e.target?.result;
         if (typeof result !== 'string') {
-          throw new Error('Invalid file content');
+          throw new Error('Không thể đọc nội dung file');
         }
 
-        const data = JSON.parse(result);
+        // Parse JSON
+        let data: any;
+        try {
+          data = JSON.parse(result);
+        } catch (parseError) {
+          throw new Error('File JSON không hợp lệ. Vui lòng kiểm tra lại file.');
+        }
 
-        if (data.orders) window.localStorage.setItem('orders', JSON.stringify(data.orders));
-        if (data.customers) window.localStorage.setItem('customers', JSON.stringify(data.customers));
-        if (data.products) window.localStorage.setItem('products', JSON.stringify(data.products));
+        // Validate cấu trúc dữ liệu cơ bản
+        if (!data || typeof data !== 'object') {
+          throw new Error('Dữ liệu trong file không hợp lệ');
+        }
 
-        if (data.companyInfo) {
+        // Import dữ liệu
+        let importedCount = 0;
+        const importedItems: string[] = [];
+
+        if (data.orders && Array.isArray(data.orders)) {
+          window.localStorage.setItem('orders', JSON.stringify(data.orders));
+          importedItems.push(`${data.orders.length} đơn hàng`);
+          importedCount++;
+        }
+
+        if (data.customers && Array.isArray(data.customers)) {
+          window.localStorage.setItem('customers', JSON.stringify(data.customers));
+          importedItems.push(`${data.customers.length} khách hàng`);
+          importedCount++;
+        }
+
+        if (data.products && Array.isArray(data.products)) {
+          window.localStorage.setItem('products', JSON.stringify(data.products));
+          importedItems.push(`${data.products.length} sản phẩm`);
+          importedCount++;
+        }
+
+        if (data.companyInfo && typeof data.companyInfo === 'object') {
           saveCompanyInfo(data.companyInfo);
           setCompanyInfo(getCompanyInfo());
+          importedItems.push('thông tin công ty');
+          importedCount++;
         }
 
-        if (data.invoiceSettings) {
+        if (data.invoiceSettings && typeof data.invoiceSettings === 'object') {
           saveInvoiceSettings(data.invoiceSettings);
           const refreshedSettings = getInvoiceSettings();
           setInvoiceSettings(refreshedSettings);
           setTagsInput(refreshedSettings.orderDefaults.tags.join(', '));
           syncOrderCounterWithSettings(refreshedSettings.numbering.nextNumber);
+          importedItems.push('cài đặt hóa đơn');
+          importedCount++;
+        }
+
+        // Reset input
+        input.value = '';
+
+        if (importedCount === 0) {
+          toast({
+            title: "Không có dữ liệu hợp lệ",
+            description: "File không chứa dữ liệu có thể import",
+            variant: "destructive",
+          });
+          return;
         }
 
         toast({
           title: "Nhập dữ liệu thành công",
-          description: "Hệ thống đã cập nhật dữ liệu từ tệp",
+          description: `Đã import: ${importedItems.join(', ')}. Vui lòng refresh trang để xem dữ liệu mới.`,
+          duration: 5000,
         });
+
+        // Tự động refresh sau 1 giây để hiển thị dữ liệu mới
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
       } catch (error) {
-        console.error(error);
+        console.error('Import error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+        
+        // Reset input
+        input.value = '';
+
         toast({
           title: "Lỗi nhập dữ liệu",
-          description: "File không đúng định dạng hoặc bị lỗi",
+          description: errorMessage,
           variant: "destructive",
+          duration: 5000,
         });
       }
     };
 
-    reader.readAsText(file);
+    reader.onerror = () => {
+      input.value = '';
+      toast({
+        title: "Lỗi đọc file",
+        description: "Không thể đọc file. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    };
+
+    reader.readAsText(file, 'UTF-8');
   };
 
   const clearAllData = () => {
