@@ -23,6 +23,7 @@ export interface CompanyInfo {
   bankAccount: string;
   bankName: string;
   accountHolder: string;
+  logo?: string; // Base64 data URL hoặc URL của logo
 }
 
 export interface Customer {

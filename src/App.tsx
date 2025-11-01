@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrdersPage from "./pages/OrdersPage";
@@ -20,6 +21,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   return (
+  <ThemeProvider defaultTheme="system" storageKey="invoice-ui-theme">
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -35,14 +37,15 @@ const App = () => {
           <Route path="/visual-builder" element={<VisualTemplateBuilder />} />
           <Route path="/invoice-builder" element={<AdvancedInvoiceBuilder />} />
           <Route path="/figma-builder" element={<FigmaLikeBuilder />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/settings" element={<Settings />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 };
 

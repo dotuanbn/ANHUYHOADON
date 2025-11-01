@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save, Download, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Download, Upload, Trash2, Loader2, CheckCircle, ImageIcon, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   getCompanyInfo,
   saveCompanyInfo,
@@ -57,10 +58,101 @@ const Settings = () => {
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(initialInvoiceSettings);
   const [tagsInput, setTagsInput] = useState(initialInvoiceSettings.orderDefaults.tags.join(', '));
 
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
   const numberingPreview = useMemo(
     () => formatOrderNumber(invoiceSettings, invoiceSettings.numbering.nextNumber),
     [invoiceSettings]
   );
+
+  // Convert file to base64 data URL
+  const convertFileToDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          resolve(result);
+        } else {
+          reject(new Error('Không thể đọc file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Lỗi khi đọc file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle logo upload
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+
+    // Validate file type
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Loại file không hợp lệ",
+        description: "Chỉ chấp nhận: JPG, PNG, GIF, WEBP, SVG",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // Validate file size
+    if (file.size > maxSize) {
+      toast({
+        title: "File quá lớn",
+        description: "Kích thước tối đa: 2MB",
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    setIsUploadingLogo(true);
+
+    try {
+      const dataUrl = await convertFileToDataURL(file);
+      setCompanyInfo({
+        ...companyInfo,
+        logo: dataUrl,
+      });
+      
+      toast({
+        title: "Upload logo thành công",
+        description: "Logo đã được thêm vào hệ thống",
+      });
+    } catch (error) {
+      toast({
+        title: "Lỗi upload",
+        description: error instanceof Error ? error.message : 'Không thể upload logo',
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      event.target.value = '';
+    }
+  };
+
+  // Remove logo
+  const handleRemoveLogo = () => {
+    setCompanyInfo({
+      ...companyInfo,
+      logo: undefined,
+    });
+    toast({
+      title: "Đã xóa logo",
+      description: "Logo đã được xóa khỏi hệ thống",
+    });
+  };
 
   const handleCompanyChange = (field: keyof CompanyInfo, value: string) => {
     setCompanyInfo((prev) => ({
@@ -139,66 +231,84 @@ const Settings = () => {
     }));
   };
 
-  const handleSaveCompanyInfo = () => {
-    saveCompanyInfo(companyInfo);
-    setCompanyInfo(getCompanyInfo());
-    toast({
-      title: "Đã lưu thông tin công ty",
-      description: "Thông tin công ty đã được cập nhật thành công",
-    });
+  const handleSaveCompanyInfo = async () => {
+    setIsSavingCompany(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      saveCompanyInfo(companyInfo);
+      setCompanyInfo(getCompanyInfo());
+      toast({
+        title: "Đã lưu thông tin công ty",
+        description: "Thông tin công ty đã được cập nhật thành công",
+      });
+    } finally {
+      setIsSavingCompany(false);
+    }
   };
 
-  const handleSaveInvoiceSettings = () => {
-    const sanitizedTags = tagsInput
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean);
+  const handleSaveInvoiceSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const sanitizedTags = tagsInput
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
 
-    const pendingSettings: InvoiceSettings = {
-      ...invoiceSettings,
-      orderDefaults: {
-        ...invoiceSettings.orderDefaults,
-        tags: sanitizedTags,
-      },
-    };
+      const pendingSettings: InvoiceSettings = {
+        ...invoiceSettings,
+        orderDefaults: {
+          ...invoiceSettings.orderDefaults,
+          tags: sanitizedTags,
+        },
+      };
 
-    saveInvoiceSettings(pendingSettings);
-    syncOrderCounterWithSettings(pendingSettings.numbering.nextNumber);
+      saveInvoiceSettings(pendingSettings);
+      syncOrderCounterWithSettings(pendingSettings.numbering.nextNumber);
 
-    const refreshedSettings = getInvoiceSettings();
-    setInvoiceSettings(refreshedSettings);
-    setTagsInput(refreshedSettings.orderDefaults.tags.join(', '));
+      const refreshedSettings = getInvoiceSettings();
+      setInvoiceSettings(refreshedSettings);
+      setTagsInput(refreshedSettings.orderDefaults.tags.join(', '));
 
-    toast({
-      title: "Đã lưu cài đặt hóa đơn",
-      description: "Các giá trị mặc định sẽ áp dụng cho hóa đơn mới",
-    });
+      toast({
+        title: "Đã lưu cài đặt hóa đơn",
+        description: "Các giá trị mặc định sẽ áp dụng cho hóa đơn mới",
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
-  const exportData = () => {
-    const data = {
-      orders: JSON.parse(window.localStorage.getItem('orders') || '[]'),
-      customers: JSON.parse(window.localStorage.getItem('customers') || '[]'),
-      products: JSON.parse(window.localStorage.getItem('products') || '[]'),
-      companyInfo,
-      invoiceSettings,
-    };
+  const exportData = async () => {
+    setIsExporting(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const data = {
+        orders: JSON.parse(window.localStorage.getItem('orders') || '[]'),
+        customers: JSON.parse(window.localStorage.getItem('customers') || '[]'),
+        products: JSON.parse(window.localStorage.getItem('products') || '[]'),
+        companyInfo,
+        invoiceSettings,
+      };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bep-an-huy-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bep-an-huy-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
 
-    toast({
-      title: "Xuất dữ liệu thành công",
-      description: "Tệp sao lưu đã được tải xuống",
-    });
+      toast({
+        title: "Xuất dữ liệu thành công",
+        description: "Tệp sao lưu đã được tải xuống",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importData = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -216,8 +326,10 @@ const Settings = () => {
       return;
     }
 
+    setIsImporting(true);
+
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const result = e.target?.result;
         if (typeof result !== 'string') {
@@ -236,6 +348,9 @@ const Settings = () => {
         if (!data || typeof data !== 'object') {
           throw new Error('Dữ liệu trong file không hợp lệ');
         }
+
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Import dữ liệu
         let importedCount = 0;
@@ -323,6 +438,7 @@ const Settings = () => {
             description: "File không chứa dữ liệu có thể import",
             variant: "destructive",
           });
+          setIsImporting(false);
           return;
         }
 
@@ -331,6 +447,8 @@ const Settings = () => {
           description: `Đã import: ${importedItems.join(', ')}. Vui lòng refresh trang để xem dữ liệu mới.`,
           duration: 5000,
         });
+
+        setIsImporting(false);
 
         // Tự động refresh sau 1 giây để hiển thị dữ liệu mới
         setTimeout(() => {
@@ -343,6 +461,7 @@ const Settings = () => {
         
         // Reset input
         input.value = '';
+        setIsImporting(false);
 
         toast({
           title: "Lỗi nhập dữ liệu",
@@ -355,6 +474,7 @@ const Settings = () => {
 
     reader.onerror = () => {
       input.value = '';
+      setIsImporting(false);
       toast({
         title: "Lỗi đọc file",
         description: "Không thể đọc file. Vui lòng thử lại.",
@@ -365,8 +485,14 @@ const Settings = () => {
     reader.readAsText(file, 'UTF-8');
   };
 
-  const clearAllData = () => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ dữ liệu? Hành động này không thể hoàn tác!')) {
+  const clearAllData = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa toàn bộ dữ liệu? Hành động này không thể hoàn tác!')) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
       window.localStorage.removeItem('orders');
       window.localStorage.removeItem('customers');
       window.localStorage.removeItem('products');
@@ -385,32 +511,35 @@ const Settings = () => {
         title: "Đã xóa toàn bộ dữ liệu",
         description: "Hệ thống đã được đưa về trạng thái ban đầu",
       });
+    } finally {
+      setIsClearing(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="bg-white dark:bg-gray-900 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 sm:py-6 space-y-4 sm:space-y-0">
             <div className="flex items-center">
-              <Button variant="ghost" onClick={() => navigate('/')} className="mr-2 sm:mr-4 p-2">
+              <Button variant="ghost" onClick={() => navigate('/')} className="mr-2 sm:mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800">
                 <ArrowLeft className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Quay lại</span>
               </Button>
               <div>
-                <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Cài đặt hệ thống</h1>
-                <p className="text-sm sm:text-base text-gray-600 hidden sm:block">
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Cài đặt hệ thống</h1>
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 hidden sm:block">
                   Quản lý thông tin công ty và các giá trị mặc định của hóa đơn
                 </p>
               </div>
             </div>
+            <ThemeToggle />
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
-        <Card className="bg-white shadow-lg">
+        <Card className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
             <CardTitle className="text-lg sm:text-xl">Thông tin công ty</CardTitle>
             <CardDescription className="text-sm">
@@ -418,9 +547,84 @@ const Settings = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
+            {/* Logo Upload Section */}
+            <div className="space-y-3 border-b pb-4">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                Logo công ty
+              </label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                {/* Logo Preview */}
+                {companyInfo.logo ? (
+                  <div className="relative group">
+                    <div className="w-32 h-32 border-2 border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                      <img
+                        src={companyInfo.logo}
+                        alt="Logo công ty"
+                        className="max-w-full max-h-full object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Xóa logo"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                    <ImageIcon className="w-12 h-12 text-gray-400" />
+                  </div>
+                )}
+                
+                {/* Upload Button */}
+                <div className="flex-1">
+                  <label className="cursor-pointer inline-block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload-input"
+                      disabled={isUploadingLogo}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('logo-upload-input')?.click()}
+                      disabled={isUploadingLogo}
+                      className="w-full sm:w-auto"
+                    >
+                      {isUploadingLogo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Đang tải...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          {companyInfo.logo ? 'Thay đổi logo' : 'Tải logo lên'}
+                        </>
+                      )}
+                    </Button>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Logo sẽ hiển thị ở góc trái trên cùng của hóa đơn. 
+                    <br />
+                    Định dạng: JPG, PNG, GIF, WEBP, SVG (tối đa 2MB)
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tên công ty</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tên công ty</label>
                 <Input
                   placeholder="Tên công ty"
                   value={companyInfo.name}
@@ -429,7 +633,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số điện thoại</label>
                 <Input
                   placeholder="Số điện thoại"
                   value={companyInfo.phone}
@@ -438,7 +642,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                 <Input
                   placeholder="Email"
                   value={companyInfo.email}
@@ -447,7 +651,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Website</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website</label>
                 <Input
                   placeholder="Website"
                   value={companyInfo.website}
@@ -456,7 +660,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mã số thuế</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mã số thuế</label>
                 <Input
                   placeholder="Mã số thuế"
                   value={companyInfo.taxCode}
@@ -477,7 +681,7 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Số tài khoản</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số tài khoản</label>
                 <Input
                   placeholder="Số tài khoản"
                   value={companyInfo.bankAccount}
@@ -486,7 +690,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Ngân hàng</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngân hàng</label>
                 <Input
                   placeholder="Ngân hàng"
                   value={companyInfo.bankName}
@@ -495,7 +699,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Chủ tài khoản</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chủ tài khoản</label>
                 <Input
                   placeholder="Chủ tài khoản"
                   value={companyInfo.accountHolder}
@@ -504,14 +708,23 @@ const Settings = () => {
                 />
               </div>
             </div>
-            <Button onClick={handleSaveCompanyInfo} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-              <Save className="w-4 h-4 mr-2" />
-              Lưu thông tin công ty
-            </Button>
+                <Button onClick={handleSaveCompanyInfo} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto" disabled={isSavingCompany}>
+                  {isSavingCompany ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Lưu thông tin công ty
+                    </>
+                  )}
+                </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-white shadow-lg">
+        <Card className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
             <CardTitle className="text-lg sm:text-xl">Cài đặt mã hóa đơn</CardTitle>
             <CardDescription className="text-sm">
@@ -521,7 +734,7 @@ const Settings = () => {
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tiền tố</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tiền tố</label>
                 <Input
                   placeholder="VD: DH"
                   value={invoiceSettings.numbering.prefix}
@@ -530,7 +743,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Hậu tố</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hậu tố</label>
                 <Input
                   placeholder="VD: -A"
                   value={invoiceSettings.numbering.suffix}
@@ -539,7 +752,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Độ dài số thứ tự</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Độ dài số thứ tự</label>
                 <Input
                   type="number"
                   min={2}
@@ -552,7 +765,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Số tiếp theo</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số tiếp theo</label>
                 <Input
                   type="number"
                   min={1}
@@ -565,7 +778,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Định dạng ngày</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Định dạng ngày</label>
                 <Select
                   value={invoiceSettings.numbering.dateFormat}
                   onValueChange={(value) => updateNumbering({ dateFormat: value as InvoiceSettings['numbering']['dateFormat'] })}
@@ -587,8 +800,8 @@ const Settings = () => {
 
             <div className="flex items-center justify-between border rounded-lg px-4 py-3 bg-slate-50">
               <div>
-                <p className="text-sm font-medium text-gray-700">Thêm ngày vào mã hóa đơn</p>
-                <p className="text-xs text-gray-500">Bỏ chọn nếu chỉ muốn dùng số tăng dần</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Thêm ngày vào mã hóa đơn</p>
+                <p className="text-xs text-gray-500 dark:text-gray-300">Bỏ chọn nếu chỉ muốn dùng số tăng dần</p>
               </div>
               <Switch
                 checked={invoiceSettings.numbering.includeDate}
@@ -596,23 +809,32 @@ const Settings = () => {
               />
             </div>
 
-            <div className="bg-slate-50 border rounded-lg p-4 text-sm text-gray-700">
+            <div className="bg-slate-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-300">
               <p><strong>Xem trước:</strong> {numberingPreview}</p>
               <p className="text-xs text-gray-500 mt-1">
                 Mã được cấu thành từ tiền tố + (ngày nếu bật) + số thứ tự đã được thêm số 0 bên trái
               </p>
             </div>
 
-            <div className="flex justify-end">
-              <Button onClick={handleSaveInvoiceSettings} className="bg-green-600 hover:bg-green-700">
-                <Save className="w-4 h-4 mr-2" />
-                Lưu cài đặt mã hóa đơn
-              </Button>
-            </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveInvoiceSettings} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm" disabled={isSavingSettings}>
+                    {isSavingSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Lưu cài đặt mã hóa đơn
+                      </>
+                    )}
+                  </Button>
+                </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white shadow-lg">
+        <Card className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
             <CardTitle className="text-lg sm:text-xl">Giá trị mặc định cho hóa đơn mới</CardTitle>
             <CardDescription className="text-sm">
@@ -624,7 +846,7 @@ const Settings = () => {
               <h3 className="text-sm sm:text-base font-semibold text-gray-800">Thanh toán & chiết khấu</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Loại chiết khấu</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại chiết khấu</label>
                   <Select
                     value={invoiceSettings.paymentDefaults.discountType}
                     onValueChange={(value) => updatePaymentDefaults({ discountType: value as DiscountType })}
@@ -642,7 +864,7 @@ const Settings = () => {
                   </Select>
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Giá trị chiết khấu</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Giá trị chiết khấu</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.discountValue}
@@ -651,7 +873,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Thuế mặc định (%)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Thuế mặc định (%)</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.taxRate}
@@ -660,7 +882,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Phí vận chuyển</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phí vận chuyển</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.shippingFee}
@@ -669,7 +891,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Phụ thu</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phụ thu</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.additionalFee}
@@ -678,7 +900,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Đã chuyển khoản</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Đã chuyển khoản</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.bankTransfer}
@@ -687,7 +909,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Đã thanh toán</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Đã thanh toán</label>
                   <Input
                     type="number"
                     value={invoiceSettings.paymentDefaults.paid}
@@ -702,7 +924,7 @@ const Settings = () => {
               <h3 className="text-sm sm:text-base font-semibold text-gray-800">Thông tin giao hàng & khách nhận</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tên người nhận</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tên người nhận</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.recipientName}
                     onChange={(e) => updateShippingDefaults({ recipientName: e.target.value })}
@@ -711,7 +933,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số điện thoại</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.recipientPhone}
                     onChange={(e) => updateShippingDefaults({ recipientPhone: e.target.value })}
@@ -721,7 +943,7 @@ const Settings = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Địa chỉ giao hàng</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Địa chỉ giao hàng</label>
                 <Textarea
                   rows={2}
                   value={invoiceSettings.shippingDefaults.address}
@@ -732,7 +954,7 @@ const Settings = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Phường/Xã</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phường/Xã</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.ward}
                     onChange={(e) => updateShippingDefaults({ ward: e.target.value })}
@@ -740,7 +962,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Quận/Huyện</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quận/Huyện</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.district}
                     onChange={(e) => updateShippingDefaults({ district: e.target.value })}
@@ -748,7 +970,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tỉnh/Thành phố</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tỉnh/Thành phố</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.province}
                     onChange={(e) => updateShippingDefaults({ province: e.target.value })}
@@ -759,16 +981,16 @@ const Settings = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 border rounded-lg px-4 py-3 bg-slate-50">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-700">Miễn phí vận chuyển mặc định</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Miễn phí vận chuyển mặc định</p>
                     <Switch
                       checked={invoiceSettings.shippingDefaults.freeShipping}
                       onCheckedChange={(checked) => updateShippingDefaults({ freeShipping: checked })}
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Nếu bật, phí vận chuyển sẽ bị khóa ở mức 0 khi tạo đơn mới.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-300">Nếu bật, phí vận chuyển sẽ bị khóa ở mức 0 khi tạo đơn mới.</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Ngày giao dự kiến</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngày giao dự kiến</label>
                   <Input
                     type="date"
                     value={invoiceSettings.shippingDefaults.estimatedDeliveryDate}
@@ -779,7 +1001,7 @@ const Settings = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mã vận đơn</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mã vận đơn</label>
                   <Input
                     value={invoiceSettings.shippingDefaults.trackingNumber}
                     onChange={(e) => updateShippingDefaults({ trackingNumber: e.target.value })}
@@ -787,7 +1009,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Dài (cm)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dài (cm)</label>
                   <Input
                     type="number"
                     value={invoiceSettings.shippingDefaults.dimensions.length}
@@ -796,7 +1018,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Rộng (cm)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rộng (cm)</label>
                   <Input
                     type="number"
                     value={invoiceSettings.shippingDefaults.dimensions.width}
@@ -805,7 +1027,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Cao (cm)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cao (cm)</label>
                   <Input
                     type="number"
                     value={invoiceSettings.shippingDefaults.dimensions.height}
@@ -820,7 +1042,7 @@ const Settings = () => {
               <h3 className="text-sm sm:text-base font-semibold text-gray-800">Thông tin đơn hàng</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Trạng thái mặc định</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái mặc định</label>
                   <Select
                     value={invoiceSettings.orderDefaults.status}
                     onValueChange={(value) => updateOrderDefaults({ status: value as OrderStatus })}
@@ -838,7 +1060,7 @@ const Settings = () => {
                   </Select>
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Nhân viên phụ trách</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nhân viên phụ trách</label>
                   <Input
                     value={invoiceSettings.orderDefaults.assignedTo}
                     onChange={(e) => updateOrderDefaults({ assignedTo: e.target.value })}
@@ -847,7 +1069,7 @@ const Settings = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Marketer</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marketer</label>
                   <Input
                     value={invoiceSettings.orderDefaults.marketer}
                     onChange={(e) => updateOrderDefaults({ marketer: e.target.value })}
@@ -857,7 +1079,7 @@ const Settings = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Tags mặc định</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags mặc định</label>
                 <Input
                   value={tagsInput}
                   onChange={(e) => {
@@ -913,17 +1135,26 @@ const Settings = () => {
               </div>
             </section>
 
-            <div className="flex justify-end">
-              <Button onClick={handleSaveInvoiceSettings} className="bg-green-600 hover:bg-green-700">
-                <Save className="w-4 h-4 mr-2" />
-                Lưu tất cả cài đặt mặc định
-              </Button>
-            </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveInvoiceSettings} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto text-xs sm:text-sm" disabled={isSavingSettings}>
+                    {isSavingSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Lưu tất cả cài đặt mặc định
+                      </>
+                    )}
+                  </Button>
+                </div>
           </CardContent>
         </Card>
 
         {/* Data Management */}
-        <Card className="bg-white shadow-lg">
+        <Card className="bg-white dark:bg-gray-800 shadow-lg border dark:border-gray-700">
           <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
             <CardTitle className="text-lg sm:text-xl">Quản lý dữ liệu</CardTitle>
             <CardDescription className="text-sm">
@@ -931,30 +1162,58 @@ const Settings = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Button onClick={exportData} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
-                <Download className="w-4 h-4 mr-2" />
-                Xuất dữ liệu
-              </Button>
-              <label className="cursor-pointer w-full sm:w-auto">
-                <Button variant="outline" asChild className="w-full">
-                  <span>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Nhập dữ liệu
-                  </span>
-                </Button>
-                <input type="file" accept=".json" onChange={importData} className="hidden" />
-              </label>
-              <Button
-                onClick={clearAllData}
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Xóa toàn bộ dữ liệu
-              </Button>
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600 space-y-2 bg-gray-50 p-3 rounded-lg">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <Button onClick={exportData} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" disabled={isExporting}>
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang xuất...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Xuất dữ liệu
+                      </>
+                    )}
+                  </Button>
+                  <label className="cursor-pointer w-full sm:w-auto">
+                    <Button variant="outline" asChild className="w-full" disabled={isImporting}>
+                      <span>
+                        {isImporting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Đang nhập...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Nhập dữ liệu
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                    <input type="file" accept=".json" onChange={importData} className="hidden" disabled={isImporting} />
+                  </label>
+                  <Button
+                    onClick={clearAllData}
+                    variant="destructive"
+                    className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
+                    disabled={isClearing}
+                  >
+                    {isClearing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang xóa...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Xóa toàn bộ dữ liệu
+                      </>
+                    )}
+                  </Button>
+                </div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 space-y-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
               <p><strong>• Xuất dữ liệu:</strong> Tạo tệp JSON chứa đơn hàng, khách hàng, sản phẩm và cài đặt</p>
               <p><strong>• Nhập dữ liệu:</strong> Phục hồi dữ liệu từ tệp backup trước đó</p>
               <p><strong>• Xóa dữ liệu:</strong> Dọn sạch toàn bộ dữ liệu và đưa hệ thống về trạng thái ban đầu</p>

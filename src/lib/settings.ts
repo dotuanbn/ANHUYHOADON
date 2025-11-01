@@ -73,6 +73,7 @@ const cloneCompanyInfo = (info: CompanyInfo): CompanyInfo => ({
   bankAccount: info.bankAccount,
   bankName: info.bankName,
   accountHolder: info.accountHolder,
+  logo: info.logo,
 });
 
 const cloneInvoiceSettings = (settings: InvoiceSettings): InvoiceSettings => ({

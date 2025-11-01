@@ -659,16 +659,16 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
     <div className="space-y-4">
       {/* Header */}
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-2xl">
+        <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-xl sm:text-2xl truncate">
                 {orderId ? `Sửa đơn hàng` : `Tạo đơn hàng mới`}
               </CardTitle>
-              {orderNumber && <p className="text-sm text-gray-600 mt-1">#{orderNumber}</p>}
+              {orderNumber && <p className="text-xs sm:text-sm text-gray-600 mt-1">#{orderNumber}</p>}
             </div>
-            <div className="flex flex-col items-end space-y-2">
-              <Badge className={`text-lg px-4 py-2 border ${getStatusColor(status)}`}>
+            <div className="flex flex-col items-start sm:items-end space-y-2 w-full sm:w-auto">
+              <Badge className={`text-sm sm:text-lg px-3 sm:px-4 py-1 sm:py-2 border ${getStatusColor(status)}`}>
                 {getStatusLabel(status)}
               </Badge>
               {orderId && (
@@ -686,24 +686,25 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
         </CardHeader>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Left column - Products */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {/* Products Section */}
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center">
-                  <Package className="w-5 h-5 mr-2" />
-                  Sản phẩm ({selectedItems.length})
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+                <CardTitle className="flex items-center text-base sm:text-lg">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                  <span className="truncate">Sản phẩm ({selectedItems.length})</span>
                 </CardTitle>
-                <Button onClick={() => setIsProductDialogOpen(true)} size="sm">
+                <Button onClick={() => setIsProductDialogOpen(true)} size="sm" className="w-full sm:w-auto text-xs sm:text-sm">
                   <Plus className="w-4 h-4 mr-2" />
-                  Thêm sản phẩm
+                  <span className="hidden sm:inline">Thêm sản phẩm</span>
+                  <span className="sm:hidden">Thêm</span>
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Thêm sản phẩm nhanh</label>
                 <div className="relative">
@@ -712,8 +713,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                     value={productSearchTerm}
                     onChange={(e) => setProductSearchTerm(e.target.value)}
                     onKeyDown={handleProductSearchKeyDown}
-                    placeholder="Nhập tên hoặc mã sản phẩm, nhấn Enter để thêm nhanh"
-                    className="pl-9"
+                    placeholder="Nhập tên hoặc mã sản phẩm..."
+                    className="pl-9 text-sm"
                   />
                 </div>
                 {productSearchTerm.trim() !== '' && (
@@ -724,119 +725,123 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                           key={product.id}
                           type="button"
                           onClick={() => handleAddProductFromSuggestion(product)}
-                          className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 flex items-center justify-between gap-3"
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3"
                         >
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">{product.name}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs sm:text-sm font-medium text-gray-700 truncate">{product.name}</p>
                             <p className="text-xs text-gray-500">{product.code}</p>
                           </div>
-                          <div className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm font-semibold text-blue-600 whitespace-nowrap">
                             {product.price.toLocaleString('vi-VN')} đ
                           </div>
                         </button>
                       ))
                     ) : (
-                      <div className="px-3 py-2 text-sm text-gray-500">Không tìm thấy sản phẩm phù hợp</div>
+                      <div className="px-3 py-2 text-xs sm:text-sm text-gray-500">Không tìm thấy sản phẩm phù hợp</div>
                     )}
                   </div>
                 )}
               </div>
 
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mã SP</TableHead>
-                      <TableHead>Tên sản phẩm</TableHead>
-                      <TableHead>Số lượng</TableHead>
-                      <TableHead>Đơn giá</TableHead>
-                      <TableHead>Giảm giá</TableHead>
-                      <TableHead>Tổng</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedItems.length === 0 ? (
+              <div className="overflow-x-auto -mx-3 sm:mx-0">
+                <div className="inline-block min-w-full align-middle px-3 sm:px-0">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                          Chưa có sản phẩm nào
-                        </TableCell>
+                        <TableHead className="text-xs sm:text-sm">Mã SP</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Tên sản phẩm</TableHead>
+                        <TableHead className="text-xs sm:text-sm">SL</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Đơn giá</TableHead>
+                        <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Giảm giá</TableHead>
+                        <TableHead className="text-xs sm:text-sm">Tổng</TableHead>
+                        <TableHead className="text-xs sm:text-sm"></TableHead>
                       </TableRow>
-                    ) : (
-                      selectedItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.productCode}</TableCell>
-                          <TableCell>{item.productName}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => handleUpdateItem(item.id, 'quantity', Number(e.target.value))}
-                              className="w-20"
-                              min="1"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.price}
-                              onChange={(e) => handleUpdateItem(item.id, 'price', Number(e.target.value))}
-                              className="w-28"
-                              min="0"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={item.discount}
-                              onChange={(e) => handleUpdateItem(item.id, 'discount', Number(e.target.value))}
-                              className="w-24"
-                              min="0"
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {item.total.toLocaleString('vi-VN')} đ
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-500 text-xs sm:text-sm">
+                            Chưa có sản phẩm nào
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        selectedItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium text-xs sm:text-sm">{item.productCode}</TableCell>
+                            <TableCell className="text-xs sm:text-sm break-words">{item.productName}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => handleUpdateItem(item.id, 'quantity', Number(e.target.value))}
+                                className="w-16 sm:w-20 text-xs sm:text-sm"
+                                min="1"
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <Input
+                                type="number"
+                                value={item.price}
+                                onChange={(e) => handleUpdateItem(item.id, 'price', Number(e.target.value))}
+                                className="w-24 sm:w-28 text-xs sm:text-sm"
+                                min="0"
+                              />
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden sm:table-cell">
+                              <Input
+                                type="number"
+                                value={item.discount}
+                                onChange={(e) => handleUpdateItem(item.id, 'discount', Number(e.target.value))}
+                                className="w-20 sm:w-24 text-xs sm:text-sm"
+                                min="0"
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium text-xs sm:text-sm">
+                              {item.total.toLocaleString('vi-VN')} đ
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="h-7 sm:h-8 w-7 sm:w-8 p-0"
+                              >
+                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Payment Section */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <DollarSign className="w-5 h-5 mr-2" />
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <CardTitle className="flex items-center text-base sm:text-lg">
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Thanh toán
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
-                    <Label>Giảm giá</Label>
+                    <Label className="text-xs sm:text-sm">Giảm giá</Label>
                     <div className="flex space-x-2">
                       <Input
                         type="number"
                         value={discount}
                         onChange={(e) => setDiscount(Number(e.target.value))}
                         min="0"
+                        className="text-sm flex-1"
                       />
                       <Select value={discountType} onValueChange={(v: DiscountType) => setDiscountType(v)}>
-                        <SelectTrigger className="w-20">
+                        <SelectTrigger className="w-16 sm:w-20 text-xs sm:text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -847,44 +852,48 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Phí vận chuyển</Label>
+                    <Label className="text-xs sm:text-sm">Phí vận chuyển</Label>
                     <Input
                       type="number"
                       value={shippingFee}
                       onChange={(e) => setShippingFee(Number(e.target.value))}
                       min="0"
                       disabled={freeShipping}
+                      className="text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div className="space-y-2">
-                    <Label>Thuế (%)</Label>
+                    <Label className="text-xs sm:text-sm">Thuế (%)</Label>
                     <Input
                       type="number"
                       value={tax}
                       onChange={(e) => setTax(Number(e.target.value))}
                       min="0"
                       max="100"
+                      className="text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phụ thu</Label>
+                    <Label className="text-xs sm:text-sm">Phụ thu</Label>
                     <Input
                       type="number"
                       value={additionalFee}
                       onChange={(e) => setAdditionalFee(Number(e.target.value))}
                       min="0"
+                      className="text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Chuyển khoản</Label>
+                    <Label className="text-xs sm:text-sm">Chuyển khoản</Label>
                     <Input
                       type="number"
                       value={bankTransfer}
                       onChange={(e) => setBankTransfer(Number(e.target.value))}
                       min="0"
+                      className="text-sm"
                     />
                   </div>
                 </div>
@@ -932,31 +941,32 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
         </div>
 
         {/* Right column - Customer & Shipping */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Customer Info */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Khách hàng</CardTitle>
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <CardTitle className="text-base sm:text-lg">Khách hàng</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-3 sm:space-y-4">
               {selectedCustomer ? (
                 <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold">{selectedCustomer.name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm sm:text-base truncate">{selectedCustomer.name}</p>
                       {selectedCustomer.phone && (
-                        <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                        <p className="text-xs sm:text-sm text-gray-600">{selectedCustomer.phone}</p>
                       )}
                       {selectedCustomer.email && (
-                        <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">{selectedCustomer.email}</p>
                       )}
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedCustomer(null)}
+                      className="flex-shrink-0 h-7 sm:h-8 w-7 sm:w-8 p-0"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center text-xs pt-2 border-t">
@@ -980,13 +990,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 <div className="space-y-2">
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full text-xs sm:text-sm"
                     onClick={() => setIsCustomerDialogOpen(true)}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Chọn khách hàng
                   </Button>
-                  <p className="text-[11px] text-gray-500 text-center">
+                  <p className="text-[10px] sm:text-[11px] text-gray-500 text-center">
                     Có thể bỏ qua bước này và nhập trực tiếp thông tin người nhận ở phần bên dưới. Hệ thống sẽ tự lưu khách hàng mới sau khi bạn lưu đơn.
                   </p>
                 </div>
@@ -996,15 +1006,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
 
           {/* Shipping Info */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <Truck className="w-5 h-5 mr-2" />
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Giao hàng
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-3">
               <div className="space-y-2">
-                <Label className="text-xs">Người nhận</Label>
+                <Label className="text-xs sm:text-sm">Người nhận</Label>
                 <Input
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
@@ -1013,7 +1023,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Số điện thoại</Label>
+                <Label className="text-xs sm:text-sm">Số điện thoại</Label>
                 <Input
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(e.target.value)}
@@ -1022,21 +1032,21 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Địa chỉ</Label>
+                <Label className="text-xs sm:text-sm">Địa chỉ</Label>
                 <Textarea
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
                   onBlur={handleAddressBlur}
-                  placeholder="Nhập địa chỉ chi tiết (có thể gõ liền, hệ thống sẽ tách khu vực nếu nhận diện được)"
+                  placeholder="Nhập địa chỉ chi tiết..."
                   className="text-sm"
                   rows={2}
                 />
-                <p className="text-[11px] text-gray-500">
-                  Ví dụ: "123 Đường ABC, Phường 5, Quận 3, TP HCM". Khi nhập, hệ thống sẽ tự điền Phường/Quận/Tỉnh nếu có thể nhận diện.
+                <p className="text-[10px] sm:text-[11px] text-gray-500">
+                  Ví dụ: "123 Đường ABC, Phường 5, Quận 3, TP HCM". Hệ thống sẽ tự điền Phường/Quận/Tỉnh nếu có thể nhận diện.
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Phường/Xã</Label>
+                <Label className="text-xs sm:text-sm">Phường/Xã</Label>
                 <Input
                   value={ward}
                   onChange={(e) => setWard(e.target.value)}
@@ -1046,7 +1056,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label className="text-xs">Quận/Huyện</Label>
+                  <Label className="text-xs sm:text-sm">Quận/Huyện</Label>
                   <Input
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
@@ -1055,7 +1065,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Tỉnh/TP</Label>
+                  <Label className="text-xs sm:text-sm">Tỉnh/TP</Label>
                   <Input
                     value={province}
                     onChange={(e) => setProvince(e.target.value)}
@@ -1065,7 +1075,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Dự kiến nhận hàng</Label>
+                <Label className="text-xs sm:text-sm">Dự kiến nhận hàng</Label>
                 <Input
                   type="date"
                   value={estimatedDeliveryDate}
@@ -1074,7 +1084,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Mã vận đơn</Label>
+                <Label className="text-xs sm:text-sm">Mã vận đơn</Label>
                 <Input
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
@@ -1083,7 +1093,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Kích thước (cm)</Label>
+                <Label className="text-xs sm:text-sm">Kích thước (cm)</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <Input
                     type="number"
@@ -1113,12 +1123,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
 
           {/* Additional Info */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Thông tin khác</CardTitle>
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <CardTitle className="text-base sm:text-lg">Thông tin khác</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-3">
               <div className="space-y-2">
-                <Label className="text-xs">Mã đơn hàng</Label>
+                <Label className="text-xs sm:text-sm">Mã đơn hàng</Label>
                 <Input
                   value={orderNumber}
                   onChange={(e) => setOrderNumber(e.target.value)}
@@ -1128,7 +1138,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
               </div>
               {orderId && (
                 <div className="space-y-2 pb-3 border-b">
-                  <Label className="text-xs font-semibold">Chuyển trạng thái</Label>
+                  <Label className="text-xs sm:text-sm font-semibold">Chuyển trạng thái</Label>
                   <StatusTransitionButtons
                     orderId={orderId}
                     currentStatus={status}
@@ -1141,7 +1151,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 </div>
               )}
               <div className="space-y-2">
-                <Label className="text-xs">Trạng thái</Label>
+                <Label className="text-xs sm:text-sm">Trạng thái</Label>
                 <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus)}>
                   <SelectTrigger className="text-sm">
                     <SelectValue />
@@ -1158,7 +1168,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">NV chăm sóc</Label>
+                <Label className="text-xs sm:text-sm">NV chăm sóc</Label>
                 <Input
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
@@ -1167,7 +1177,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Marketer</Label>
+                <Label className="text-xs sm:text-sm">Marketer</Label>
                 <Input
                   value={marketer}
                   onChange={(e) => setMarketer(e.target.value)}
@@ -1176,20 +1186,20 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Thẻ tag</Label>
+                <Label className="text-xs sm:text-sm">Thẻ tag</Label>
                 <div className="flex space-x-2">
                   <Input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
                     placeholder="Thêm thẻ"
-                    className="text-sm"
+                    className="text-sm flex-1"
                   />
-                  <Button size="sm" onClick={handleAddTag}>
-                    <Plus className="w-4 h-4" />
+                  <Button size="sm" onClick={handleAddTag} className="flex-shrink-0">
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-1 mt-2">
+                <div className="flex flex-wrap gap-1 sm:gap-2 mt-2">
                   {tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
@@ -1206,15 +1216,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
 
           {/* Notes */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <FileText className="w-5 h-5 mr-2" />
+            <CardHeader className="px-3 sm:px-6 pt-4 sm:pt-6">
+              <CardTitle className="text-base sm:text-lg flex items-center">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Ghi chú
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6 space-y-3">
               <Tabs defaultValue="internal">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-3 text-xs sm:text-sm">
                   <TabsTrigger value="internal" onClick={() => setNoteType('internal')}>Nội bộ</TabsTrigger>
                   <TabsTrigger value="easy_print" onClick={() => setNoteType('easy_print')}>Dễ in</TabsTrigger>
                   <TabsTrigger value="discussion" onClick={() => setNoteType('discussion')}>Trao đổi</TabsTrigger>
@@ -1227,22 +1237,22 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 rows={3}
                 className="text-sm"
               />
-              <Button size="sm" onClick={handleAddNote} className="w-full">
+              <Button size="sm" onClick={handleAddNote} className="w-full sm:w-auto text-xs sm:text-sm">
                 Thêm ghi chú
               </Button>
               {notes.length > 0 && (
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {notes.map((note) => (
-                    <div key={note.id} className="p-2 bg-gray-50 rounded text-xs">
-                      <div className="flex justify-between items-start mb-1">
-                        <Badge variant="outline" className="text-[10px]">
+                    <div key={note.id} className="p-2 sm:p-3 bg-gray-50 rounded text-xs sm:text-sm">
+                      <div className="flex justify-between items-start mb-1 gap-2">
+                        <Badge variant="outline" className="text-[10px] sm:text-xs">
                           {note.type === 'internal' ? 'Nội bộ' : note.type === 'easy_print' ? 'Dễ in' : 'Trao đổi'}
                         </Badge>
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 text-[10px] sm:text-xs whitespace-nowrap">
                           {new Date(note.createdAt).toLocaleDateString('vi-VN')}
                         </span>
                       </div>
-                      <p>{note.content}</p>
+                      <p className="break-words">{note.content}</p>
                     </div>
                   ))}
                 </div>
@@ -1254,19 +1264,22 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
 
       {/* Action Buttons */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex justify-between items-center">
-            <div className="text-sm space-y-1">
-              <p>Trạng thái: <Badge>{status}</Badge></p>
-              <p className="font-bold text-lg">Cần thanh toán: {finalAmount.toLocaleString('vi-VN')} đ</p>
+        <CardContent className="px-3 sm:px-6 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+            <div className="text-xs sm:text-sm space-y-1 w-full sm:w-auto">
+              <p className="flex items-center gap-2 flex-wrap">
+                <span>Trạng thái:</span>
+                <Badge className="text-xs sm:text-sm">{getStatusLabel(status)}</Badge>
+              </p>
+              <p className="font-bold text-base sm:text-lg">Cần thanh toán: {finalAmount.toLocaleString('vi-VN')} đ</p>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
               {onCancel && (
-                <Button variant="outline" onClick={onCancel}>
+                <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto text-xs sm:text-sm">
                   Hủy
                 </Button>
               )}
-              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs sm:text-sm">
                 {orderId ? 'Cập nhật' : 'Lưu đơn hàng'}
               </Button>
             </div>
@@ -1276,100 +1289,147 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
 
       {/* Product Selection Dialog */}
       <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[80vh] mx-3 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle>Chọn sản phẩm</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Chọn sản phẩm</DialogTitle>
             <DialogDescription>
               <div className="mt-4">
                 <Input
                   placeholder="Tìm kiếm sản phẩm theo tên hoặc mã..."
                   value={productSearchTerm}
                   onChange={(e) => setProductSearchTerm(e.target.value)}
+                  className="text-sm"
                 />
               </div>
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã</TableHead>
-                  <TableHead>Tên sản phẩm</TableHead>
-                  <TableHead>Giá</TableHead>
-                  <TableHead>Tồn kho</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.code}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.price.toLocaleString('vi-VN')} đ</TableCell>
-                    <TableCell>{product.stock}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectProduct(product)}
-                      >
-                        Chọn
-                      </Button>
-                    </TableCell>
+            <div className="block sm:hidden space-y-2">
+              {filteredProducts.map((product) => (
+                <div key={product.id} className="p-3 border rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{product.name}</p>
+                    <p className="text-xs text-gray-500">Mã: {product.code}</p>
+                    <p className="text-sm font-semibold text-blue-600">{product.price.toLocaleString('vi-VN')} đ</p>
+                    <p className="text-xs text-gray-500">Tồn kho: {product.stock}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelectProduct(product)}
+                    className="w-full sm:w-auto text-xs"
+                  >
+                    Chọn
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">Mã</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Tên sản phẩm</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Giá</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Tồn kho</TableHead>
+                    <TableHead className="text-xs sm:text-sm"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium text-xs sm:text-sm">{product.code}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{product.name}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{product.price.toLocaleString('vi-VN')} đ</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{product.stock}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSelectProduct(product)}
+                          className="text-xs"
+                        >
+                          Chọn
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Customer Selection Dialog */}
       <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[80vh] mx-3 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle>Chọn khách hàng</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Chọn khách hàng</DialogTitle>
             <DialogDescription>
               <div className="mt-4">
                 <Input
                   placeholder="Tìm kiếm khách hàng theo tên hoặc số điện thoại..."
                   value={customerSearchTerm}
                   onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="text-sm"
                 />
               </div>
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên</TableHead>
-                  <TableHead>Số điện thoại</TableHead>
-                  <TableHead>Đơn hàng</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.phone || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {customer.successfulOrders}/{customer.totalOrders}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectCustomer(customer)}
-                      >
-                        Chọn
-                      </Button>
-                    </TableCell>
+            <div className="block sm:hidden space-y-2">
+              {filteredCustomers.map((customer) => (
+                <div key={customer.id} className="p-3 border rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{customer.name}</p>
+                    <p className="text-xs text-gray-500">{customer.phone || '-'}</p>
+                    <Badge variant="outline" className="text-xs mt-1">
+                      {customer.successfulOrders}/{customer.totalOrders}
+                    </Badge>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelectCustomer(customer)}
+                    className="w-full sm:w-auto text-xs"
+                  >
+                    Chọn
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">Tên</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Số điện thoại</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Đơn hàng</TableHead>
+                    <TableHead className="text-xs sm:text-sm"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium text-xs sm:text-sm">{customer.name}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{customer.phone || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {customer.successfulOrders}/{customer.totalOrders}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSelectCustomer(customer)}
+                          className="text-xs"
+                        >
+                          Chọn
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
