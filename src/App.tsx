@@ -21,7 +21,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   return (
-  <ThemeProvider defaultTheme="system" storageKey="invoice-ui-theme">
+  <ThemeProvider defaultTheme="light" storageKey="invoice-ui-theme">
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
