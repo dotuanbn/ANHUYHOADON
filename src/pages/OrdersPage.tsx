@@ -3,16 +3,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Filter, ArrowLeft, Eye, Edit, Printer, MoreVertical, CheckCircle, Truck, XCircle } from "lucide-react";
+import { Search, ArrowLeft, Eye, Edit, Printer, MoreVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Order, OrderStatus } from '@/types';
-import { getOrders, updateOrder } from '@/lib/storage';
+import { getOrders, deleteOrder } from '@/lib/storage';
 import { getAvailableTransitions, transitionOrderStatus, getStatusLabel, getStatusColor } from '@/lib/orderLogic';
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { cn } from "@/lib/utils";
+
+const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
+  { value: 'new', label: 'Mới' },
+  { value: 'confirmed', label: 'Đã xác nhận' },
+  { value: 'processing', label: 'Đang xử lý' },
+  { value: 'shipping', label: 'Đang giao' },
+  { value: 'delivered', label: 'Đã giao' },
+  { value: 'cancelled', label: 'Đã hủy' },
+  { value: 'returned', label: 'Trả hàng' },
+];
 
 const OrdersPage = () => {
   const navigate = useNavigate();
@@ -20,10 +32,16 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<OrderStatus>('processing');
 
   useEffect(() => {
     loadOrders();
   }, []);
+
+  useEffect(() => {
+    setSelectedOrders((prev) => prev.filter((id) => orders.some((order) => order.id === id)));
+  }, [orders]);
 
   const loadOrders = () => {
     const loadedOrders = getOrders();
@@ -41,6 +59,7 @@ const OrdersPage = () => {
         description: result.message,
       });
       loadOrders();
+      setSelectedOrders([]);
     } else {
       toast({
         title: "Lỗi",
@@ -48,6 +67,90 @@ const OrdersPage = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleToggleSelect = (orderId: string, shouldSelect: boolean) => {
+    setSelectedOrders((prev) => {
+      if (shouldSelect) {
+        if (prev.includes(orderId)) return prev;
+        return [...prev, orderId];
+      }
+      return prev.filter((id) => id !== orderId);
+    });
+  };
+
+  const handleToggleSelectAll = (selectAll: boolean, scopedOrders: Order[]) => {
+    setSelectedOrders((prev) => {
+      if (selectAll) {
+        const next = new Set(prev);
+        scopedOrders.forEach((order) => next.add(order.id));
+        return Array.from(next);
+      }
+      const scopedIds = new Set(scopedOrders.map((order) => order.id));
+      return prev.filter((id) => !scopedIds.has(id));
+    });
+  };
+
+  const handleBulkStatusChange = (targetStatus: OrderStatus) => {
+    if (selectedOrders.length === 0) return;
+
+    const selectedOrderObjects = orders.filter((order) => selectedOrders.includes(order.id));
+    const invalidOrders = selectedOrderObjects.filter(
+      (order) => !getAvailableTransitions(order).some((transition) => transition.to === targetStatus)
+    );
+
+    if (invalidOrders.length > 0) {
+      toast({
+        title: "Không thể cập nhật",
+        description: `Có ${invalidOrders.length} đơn không hỗ trợ chuyển sang trạng thái ${getStatusLabel(targetStatus)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    selectedOrderObjects.forEach((order) => {
+      const result = transitionOrderStatus(order.id, targetStatus);
+      if (result.success) {
+        successCount += 1;
+      } else {
+        failureCount += 1;
+      }
+    });
+
+    loadOrders();
+    setSelectedOrders([]);
+
+    toast({
+      title: "Đã cập nhật trạng thái",
+      description:
+        failureCount > 0
+          ? `Thành công ${successCount} đơn, thất bại ${failureCount} đơn.`
+          : `Đã cập nhật ${successCount} đơn sang trạng thái ${getStatusLabel(targetStatus)}.`,
+      variant: failureCount > 0 ? "destructive" : undefined,
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedOrders.length === 0) return;
+
+    const count = selectedOrders.length;
+    const confirmDelete = window.confirm(
+      `Bạn có chắc chắn muốn xóa ${count} đơn đã chọn? Hành động này không thể hoàn tác.`
+    );
+
+    if (!confirmDelete) return;
+
+    selectedOrders.forEach((orderId) => deleteOrder(orderId));
+    loadOrders();
+    setSelectedOrders([]);
+
+    toast({
+      title: "Đã xóa đơn",
+      description: `Đã xóa ${count} đơn khỏi hệ thống`,
+    });
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -86,6 +189,17 @@ const OrdersPage = () => {
     
     return matchesSearch && matchesStatus;
   });
+
+  const selectedCount = selectedOrders.length;
+  const filteredOrderIds = new Set(filteredOrders.map((order) => order.id));
+  const filteredSelectedCount = selectedOrders.filter((id) => filteredOrderIds.has(id)).length;
+  const headerCheckboxState = filteredOrders.length === 0
+    ? false
+    : filteredSelectedCount === filteredOrders.length
+      ? true
+      : filteredSelectedCount > 0
+        ? "indeterminate"
+        : false;
 
   const stats = {
     total: orders.length,
@@ -189,15 +303,51 @@ const OrdersPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="new">Mới</SelectItem>
-                    <SelectItem value="confirmed">Đã xác nhận</SelectItem>
-                    <SelectItem value="processing">Đang xử lý</SelectItem>
-                    <SelectItem value="shipping">Đang giao</SelectItem>
-                    <SelectItem value="delivered">Đã giao</SelectItem>
-                    <SelectItem value="cancelled">Đã hủy</SelectItem>
+                    {STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+              {selectedCount > 0 && (
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between border border-blue-200 bg-blue-50/70 dark:border-blue-700 dark:bg-blue-950/30 rounded-lg p-3">
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-200">
+                    Đã chọn {selectedCount} đơn hàng
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                      <Select value={bulkStatus} onValueChange={(value) => setBulkStatus(value as OrderStatus)}>
+                        <SelectTrigger className="w-full sm:w-48 text-sm">
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => handleBulkStatusChange(bulkStatus)}
+                        className="w-full sm:w-auto"
+                        variant="default"
+                      >
+                        Cập nhật trạng thái
+                      </Button>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={handleBulkDelete}
+                      className="w-full sm:w-auto"
+                    >
+                      Xóa đơn đã chọn
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="px-0 sm:px-6 pb-4 sm:pb-6">
@@ -208,72 +358,88 @@ const OrdersPage = () => {
                   Không có đơn hàng nào
                 </div>
               ) : (
-                filteredOrders.map((order) => (
-                  <div key={order.id} className="border rounded-lg p-3 space-y-2 bg-white">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{order.orderNumber}</p>
-                        <p className="text-xs text-gray-600 truncate mt-1">{order.customerName}</p>
-                        <p className="text-xs text-gray-500">{order.customerPhone}</p>
+                filteredOrders.map((order) => {
+                  const isSelected = selectedOrders.includes(order.id);
+                  return (
+                    <div
+                      key={order.id}
+                      className={cn(
+                        "border rounded-lg p-3 space-y-2 bg-white",
+                        isSelected && "border-blue-500 bg-blue-50/70"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 flex-1">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleToggleSelect(order.id, checked === true)}
+                            aria-label="Chọn đơn hàng"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{order.orderNumber}</p>
+                            <p className="text-xs text-gray-600 truncate mt-1">{order.customerName}</p>
+                            <p className="text-xs text-gray-500">{order.customerPhone}</p>
+                          </div>
+                        </div>
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
                       </div>
-                      <Badge className={getStatusColor(order.status)}>
-                        {getStatusLabel(order.status)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
-                      <Badge variant="outline">{order.items.length} SP</Badge>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <p className="font-bold text-blue-600 text-sm">
-                        {order.payment.finalAmount.toLocaleString('vi-VN')} đ
-                      </p>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/invoice/${order.id}`)}
-                          className="h-7 px-2"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/invoice/edit/${order.id}`)}
-                          className="h-7 px-2"
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 px-2">
-                              <MoreVertical className="w-3 h-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {getAvailableTransitions(order).map((transition) => (
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
+                        <Badge variant="outline">{order.items.length} SP</Badge>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <p className="font-bold text-blue-600 text-sm">
+                          {order.payment.finalAmount.toLocaleString('vi-VN')} đ
+                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/invoice/${order.id}`)}
+                            className="h-7 px-2"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/invoice/edit/${order.id}`)}
+                            className="h-7 px-2"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="h-7 px-2">
+                                <MoreVertical className="w-3 h-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {getAvailableTransitions(order).map((transition) => (
+                                <DropdownMenuItem
+                                  key={transition.to}
+                                  onClick={() => handleStatusTransition(order.id, transition.to)}
+                                  className="cursor-pointer text-xs"
+                                >
+                                  {transition.label}
+                                </DropdownMenuItem>
+                              ))}
                               <DropdownMenuItem
-                                key={transition.to}
-                                onClick={() => handleStatusTransition(order.id, transition.to)}
+                                onClick={() => window.print()}
                                 className="cursor-pointer text-xs"
                               >
-                                {transition.label}
+                                <Printer className="w-3 h-3 mr-2" />
+                                In đơn hàng
                               </DropdownMenuItem>
-                            ))}
-                            <DropdownMenuItem
-                              onClick={() => window.print()}
-                              className="cursor-pointer text-xs"
-                            >
-                              <Printer className="w-3 h-3 mr-2" />
-                              In đơn hàng
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -282,6 +448,14 @@ const OrdersPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        aria-label="Chọn tất cả đơn hàng"
+                        checked={headerCheckboxState}
+                        onCheckedChange={(checked) => handleToggleSelectAll(checked === true, filteredOrders)}
+                        disabled={filteredOrders.length === 0}
+                      />
+                    </TableHead>
                     <TableHead className="text-xs sm:text-sm">Số đơn hàng</TableHead>
                     <TableHead className="text-xs sm:text-sm">Khách hàng</TableHead>
                     <TableHead className="text-xs sm:text-sm hidden md:table-cell">Số điện thoại</TableHead>
@@ -295,79 +469,92 @@ const OrdersPage = () => {
                 <TableBody>
                   {filteredOrders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                         Không có đơn hàng nào
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm">{order.orderNumber}</TableCell>
-                        <TableCell className="text-xs sm:text-sm">{order.customerName}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">{order.customerPhone}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden lg:table-cell">
-                          {new Date(order.createdAt).toLocaleDateString('vi-VN')}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm">
-                          <Badge variant="outline" className="text-xs">{order.items.length} SP</Badge>
-                        </TableCell>
-                        <TableCell className="font-medium text-xs sm:text-sm">
-                          {order.payment.finalAmount.toLocaleString('vi-VN')} đ
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm">
-                          <Badge className={getStatusColor(order.status)}>
-                            {getStatusLabel(order.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end items-center gap-1 sm:gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/invoice/${order.id}`)}
-                              title="Xem chi tiết"
-                              className="h-7 sm:h-8 px-2 sm:px-3"
-                            >
-                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/invoice/edit/${order.id}`)}
-                              title="Chỉnh sửa"
-                              className="h-7 sm:h-8 px-2 sm:px-3"
-                            >
-                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" title="Thao tác khác" className="h-7 sm:h-8 px-2 sm:px-3">
-                                  <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {getAvailableTransitions(order).map((transition) => (
+                    filteredOrders.map((order) => {
+                      const isSelected = selectedOrders.includes(order.id);
+                      return (
+                        <TableRow
+                          key={order.id}
+                          className={cn(isSelected && "bg-blue-50/80 dark:bg-blue-950/30")}
+                        >
+                          <TableCell className="w-10">
+                            <Checkbox
+                              aria-label="Chọn đơn hàng"
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleToggleSelect(order.id, checked === true)}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-xs sm:text-sm">{order.orderNumber}</TableCell>
+                          <TableCell className="text-xs sm:text-sm">{order.customerName}</TableCell>
+                          <TableCell className="text-xs sm:text-sm hidden md:table-cell">{order.customerPhone}</TableCell>
+                          <TableCell className="text-xs sm:text-sm hidden lg:table-cell">
+                            {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            <Badge variant="outline" className="text-xs">{order.items.length} SP</Badge>
+                          </TableCell>
+                          <TableCell className="font-medium text-xs sm:text-sm">
+                            {order.payment.finalAmount.toLocaleString('vi-VN')} đ
+                          </TableCell>
+                          <TableCell className="text-xs sm:text-sm">
+                            <Badge className={getStatusColor(order.status)}>
+                              {getStatusLabel(order.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end items-center gap-1 sm:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/invoice/${order.id}`)}
+                                title="Xem chi tiết"
+                                className="h-7 sm:h-8 px-2 sm:px-3"
+                              >
+                                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/invoice/edit/${order.id}`)}
+                                title="Chỉnh sửa"
+                                className="h-7 sm:h-8 px-2 sm:px-3"
+                              >
+                                <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" title="Thao tác khác" className="h-7 sm:h-8 px-2 sm:px-3">
+                                    <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {getAvailableTransitions(order).map((transition) => (
+                                    <DropdownMenuItem
+                                      key={transition.to}
+                                      onClick={() => handleStatusTransition(order.id, transition.to)}
+                                      className="cursor-pointer text-xs sm:text-sm"
+                                    >
+                                      {transition.label}
+                                    </DropdownMenuItem>
+                                  ))}
                                   <DropdownMenuItem
-                                    key={transition.to}
-                                    onClick={() => handleStatusTransition(order.id, transition.to)}
+                                    onClick={() => window.print()}
                                     className="cursor-pointer text-xs sm:text-sm"
                                   >
-                                    {transition.label}
+                                    <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+                                    In đơn hàng
                                   </DropdownMenuItem>
-                                ))}
-                                <DropdownMenuItem
-                                  onClick={() => window.print()}
-                                  className="cursor-pointer text-xs sm:text-sm"
-                                >
-                                  <Printer className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
-                                  In đơn hàng
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

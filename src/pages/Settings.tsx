@@ -121,11 +121,14 @@ const Settings = () => {
 
     try {
       const dataUrl = await convertFileToDataURL(file);
-      setCompanyInfo({
+      const updatedInfo = {
         ...companyInfo,
         logo: dataUrl,
-      });
-      
+      };
+
+      setCompanyInfo(updatedInfo);
+      saveCompanyInfo(updatedInfo);
+
       toast({
         title: "Upload logo thành công",
         description: "Logo đã được thêm vào hệ thống",
@@ -144,10 +147,14 @@ const Settings = () => {
 
   // Remove logo
   const handleRemoveLogo = () => {
-    setCompanyInfo({
+    const updatedInfo = {
       ...companyInfo,
       logo: undefined,
-    });
+    };
+
+    setCompanyInfo(updatedInfo);
+    saveCompanyInfo(updatedInfo);
+
     toast({
       title: "Đã xóa logo",
       description: "Logo đã được xóa khỏi hệ thống",

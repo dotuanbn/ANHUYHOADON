@@ -128,12 +128,7 @@ const InvoicePreview = () => {
                     <img
                       src={companyInfo.logo}
                       alt={companyInfo.name || "Logo công ty"}
-                      className="max-h-16 sm:max-h-20 max-w-[150px] sm:max-w-[200px] object-contain"
-                      style={{ 
-                        maxHeight: '60px',
-                        width: 'auto',
-                        height: 'auto'
-                      }}
+                      className="max-h-24 sm:max-h-28 max-w-[200px] sm:max-w-[260px] object-contain"
                       onError={(e) => {
                         // Fallback nếu logo không load được
                         const target = e.target as HTMLImageElement;

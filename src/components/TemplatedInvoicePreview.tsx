@@ -154,7 +154,7 @@ const TemplatedInvoicePreview = () => {
                   <img 
                     src={template.company.logo} 
                     alt="Company Logo" 
-                    className="max-h-16 max-w-[100px] object-contain"
+                    className="max-h-24 max-w-[220px] object-contain"
                   />
                 )}
                 <div>
