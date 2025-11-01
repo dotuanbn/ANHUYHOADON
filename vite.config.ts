@@ -8,26 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5173,
-    proxy: {
-      // Proxy cho Pancake POS API để bypass CORS
-      '/api/pancake': {
-        target: 'https://api.pancake.vn',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/pancake/, '/v1'),
-        secure: true,
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('Pancake proxy error', err);
-          });
-        },
-      },
-      '/api/pancake-pos': {
-        target: 'https://pos.pancake.vn',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/pancake-pos/, '/api'),
-        secure: true,
-      },
-    },
   },
   plugins: [
     react(),

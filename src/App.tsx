@@ -15,30 +15,10 @@ import FigmaLikeBuilder from "./pages/FigmaLikeBuilder";
 import Customers from "./pages/Customers";
 import Products from "./pages/Products";
 import Settings from "./pages/Settings";
-import SyncPage from "./pages/SyncPage";
-import { useEffect } from "react";
-import { checkAndStartAutoSync } from "@/lib/autoSync";
-import { webhookProcessor } from "@/lib/webhookProcessor";
-import { getPancakeConfig } from "@/lib/pancakeConfig";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  useEffect(() => {
-    checkAndStartAutoSync();
-    
-    // Bắt đầu xử lý webhook nếu Pancake integration được bật
-    const config = getPancakeConfig();
-    if (config.enabled) {
-      // Poll mỗi 5 giây để lấy webhook data mới
-      webhookProcessor.startPolling(5000);
-      
-      return () => {
-        webhookProcessor.stopPolling();
-      };
-    }
-  }, []);
-
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -58,7 +38,6 @@ const App = () => {
           <Route path="/customers" element={<Customers />} />
           <Route path="/products" element={<Products />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/sync" element={<SyncPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

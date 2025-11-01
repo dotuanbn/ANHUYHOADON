@@ -20,7 +20,6 @@ import {
   syncOrderCounterWithSettings,
 } from "@/lib/settings";
 import { CompanyInfo, InvoiceSettings, DiscountType, OrderStatus } from "@/types";
-import { PancakeIntegrationSettings } from "@/components/PancakeIntegrationSettings";
 
 const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: 'new', label: 'Mới' },
@@ -801,9 +800,6 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Pancake POS Integration */}
-        <PancakeIntegrationSettings />
 
         {/* Data Management */}
         <Card className="bg-white shadow-lg">

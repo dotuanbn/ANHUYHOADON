@@ -208,7 +208,3 @@ export interface InvoiceSettings {
   orderDefaults: OrderMetaDefaults;
   notesDefaults: NotesDefaultSettings;
 }
-
-// Export Pancake types
-export * from './pancake';
-
