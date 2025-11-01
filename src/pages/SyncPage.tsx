@@ -29,14 +29,24 @@ const SyncPage = () => {
 
   useEffect(() => {
     const config = getPancakeConfig();
-    if (!config.enabled || !config.apiKey || !config.apiSecret) {
+    if (!config.enabled) {
       toast({
         title: "Chưa cấu hình",
-        description: "Vui lòng cấu hình Pancake POS trong Settings trước",
+        description: "Vui lòng bật tích hợp Pancake POS trong Settings trước",
         variant: "destructive",
       });
       navigate('/settings');
       return;
+    }
+    
+    // Nếu đang dùng webhook, không cần API Key
+    // Webhook tự động hoạt động, không cần ấn đồng bộ
+    if (!config.apiKey) {
+      toast({
+        title: "Đang sử dụng Webhook",
+        description: "Webhook tự động đồng bộ dữ liệu. Không cần ấn đồng bộ thủ công.",
+        duration: 5000,
+      });
     }
   }, [navigate, toast]);
 
@@ -49,6 +59,24 @@ const SyncPage = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Nếu không có API Key, đang dùng webhook mode
+    if (!config.apiKey) {
+      toast({
+        title: "Đang sử dụng Webhook",
+        description: "Webhook tự động đồng bộ dữ liệu từ Pancake POS. " +
+          "Nếu bạn muốn đồng bộ thủ công qua REST API, vui lòng cấu hình API Key trong Settings.",
+        variant: "default",
+        duration: 8000,
+      });
+      return;
+    }
+
+    // Kiểm tra API Secret (có thể để trống)
+    if (!config.apiSecret && config.apiKey) {
+      // Tự động dùng API Key làm API Secret
+      config.apiSecret = config.apiKey;
     }
 
     setSyncing(true);
@@ -166,17 +194,61 @@ const SyncPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Sync Actions */}
+        {/* Webhook Status */}
+        {!getPancakeConfig().apiKey && (
+          <Card className="bg-green-50 border-green-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-900">
+                <CheckCircle className="w-5 h-5" />
+                🔗 Webhook đang hoạt động
+              </CardTitle>
+              <CardDescription className="text-green-700">
+                Dữ liệu sẽ tự động được đồng bộ từ Pancake POS qua Webhook
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm text-green-800">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p>Webhook URL đã được cấu hình trong Pancake POS</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p>Hệ thống tự động poll và xử lý dữ liệu mỗi 5 giây</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p>Không cần ấn đồng bộ thủ công - dữ liệu sẽ tự động xuất hiện khi Pancake POS gửi webhook</p>
+                </div>
+                <div className="mt-4 p-3 bg-white rounded border border-green-300">
+                  <p className="text-xs font-semibold text-green-900 mb-1">Webhook URL của bạn:</p>
+                  <code className="text-xs bg-green-100 px-2 py-1 rounded block break-all">
+                    https://anhuyhoadon-g3gc.vercel.app/api/pancake-webhook
+                  </code>
+                </div>
+                <p className="mt-3 text-xs text-green-600">
+                  💡 Để đồng bộ thủ công qua REST API, vui lòng cấu hình API Key trong Settings
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sync Actions (REST API) */}
         <Card>
           <CardHeader>
-            <CardTitle>Đồng bộ ngay</CardTitle>
-            <CardDescription>Chọn loại dữ liệu muốn đồng bộ</CardDescription>
+            <CardTitle>Đồng bộ thủ công (REST API)</CardTitle>
+            <CardDescription>
+              {!getPancakeConfig().apiKey 
+                ? "⚠️ Cần cấu hình API Key trong Settings để sử dụng tính năng đồng bộ thủ công qua REST API"
+                : "Chọn loại dữ liệu muốn đồng bộ qua REST API"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button
                 onClick={() => handleSync('products')}
-                disabled={syncing}
+                disabled={syncing || !getPancakeConfig().apiKey}
                 className="h-24 flex flex-col items-center justify-center gap-2"
                 variant="outline"
               >
@@ -185,7 +257,7 @@ const SyncPage = () => {
               </Button>
               <Button
                 onClick={() => handleSync('orders')}
-                disabled={syncing}
+                disabled={syncing || !getPancakeConfig().apiKey}
                 className="h-24 flex flex-col items-center justify-center gap-2"
                 variant="outline"
               >
@@ -194,13 +266,20 @@ const SyncPage = () => {
               </Button>
               <Button
                 onClick={() => handleSync('all')}
-                disabled={syncing}
-                className="h-24 flex flex-col items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={syncing || !getPancakeConfig().apiKey}
+                className="h-24 flex flex-col items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               >
                 <RefreshCw className={`w-8 h-8 ${syncing ? 'animate-spin' : ''}`} />
                 <span>Đồng bộ Tất cả</span>
               </Button>
             </div>
+            {!getPancakeConfig().apiKey && (
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                <p className="font-semibold mb-1">ℹ️ Lưu ý:</p>
+                <p>Bạn đang sử dụng Webhook mode. Webhook tự động đồng bộ dữ liệu, không cần ấn đồng bộ thủ công.</p>
+                <p className="mt-2 text-xs">Để sử dụng tính năng đồng bộ thủ công qua REST API, vui lòng cấu hình API Key trong Settings.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

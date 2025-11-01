@@ -143,15 +143,23 @@ export const PancakeIntegrationSettings: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="pancake-enabled"
-            checked={config.enabled}
-            onCheckedChange={(checked) => handleConfigChange('enabled', checked)}
-          />
-          <Label htmlFor="pancake-enabled" className="text-sm font-medium">
-            Bật tích hợp Pancake POS
-          </Label>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="pancake-enabled"
+              checked={config.enabled}
+              onCheckedChange={(checked) => handleConfigChange('enabled', checked)}
+            />
+            <Label htmlFor="pancake-enabled" className="text-sm font-medium">
+              Bật tích hợp Pancake POS
+            </Label>
+          </div>
+          {config.enabled && !config.apiKey && (
+            <div className="text-xs text-green-600 bg-green-50 p-2 rounded border border-green-200">
+              ✅ <strong>Webhook mode:</strong> Chỉ cần bật toggle này và cấu hình Webhook URL trong Pancake POS là đủ. 
+              Không cần API Key để sử dụng Webhook.
+            </div>
+          )}
         </div>
 
         {config.enabled && (
@@ -222,20 +230,34 @@ export const PancakeIntegrationSettings: React.FC = () => {
             </Alert>
 
             <div className="space-y-4 pt-4 border-t">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-xs text-blue-800 font-semibold mb-1">💡 Lưu ý:</p>
+                <p className="text-xs text-blue-700">
+                  <strong>Webhook mode:</strong> Chỉ cần bật toggle "Bật tích hợp Pancake POS" và cấu hình Webhook URL trong Pancake POS Dashboard là đủ. 
+                  Không cần điền API Key để sử dụng Webhook.
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  <strong>REST API mode:</strong> Nếu muốn đồng bộ thủ công qua REST API, vui lòng điền API Key bên dưới.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    API Key <span className="text-red-500">*</span>
+                    API Key <span className="text-gray-500 font-normal">(Chỉ cần cho REST API sync)</span>
                   </Label>
                   <Input
                     type="password"
-                    placeholder="Nhập API Key từ Pancake POS"
+                    placeholder="Nhập API Key từ Pancake POS (tùy chọn)"
                     value={config.apiKey}
                     onChange={(e) => handleConfigChange('apiKey', e.target.value)}
                     className="text-sm"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Lấy từ: Cấu hình → Webhook - API → Tạo API Key mới
+                    Lấy từ: Cấu hình → Webhook - API → Tab "API Key" → Tạo API Key mới
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    ✅ Không bắt buộc nếu chỉ dùng Webhook
                   </p>
                 </div>
                 <div>

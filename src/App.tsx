@@ -18,12 +18,25 @@ import Settings from "./pages/Settings";
 import SyncPage from "./pages/SyncPage";
 import { useEffect } from "react";
 import { checkAndStartAutoSync } from "@/lib/autoSync";
+import { webhookProcessor } from "@/lib/webhookProcessor";
+import { getPancakeConfig } from "@/lib/pancakeConfig";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
     checkAndStartAutoSync();
+    
+    // Bắt đầu xử lý webhook nếu Pancake integration được bật
+    const config = getPancakeConfig();
+    if (config.enabled) {
+      // Poll mỗi 5 giây để lấy webhook data mới
+      webhookProcessor.startPolling(5000);
+      
+      return () => {
+        webhookProcessor.stopPolling();
+      };
+    }
   }, []);
 
   return (

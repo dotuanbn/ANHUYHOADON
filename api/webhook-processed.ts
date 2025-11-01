@@ -1,0 +1,76 @@
+// API endpoint để đánh dấu webhook đã xử lý
+// POST /api/webhook-processed
+// Body: { ids: ['uuid1', 'uuid2'] }
+
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://gbyeednwkfmiajwzwdzc.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdieWVlZG53a2ZtaWFqd3p3ZHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2OTQ0OTAsImV4cCI6MjA2NjI3MDQ5MH0.PXq121-5eVRFsb8WXecMZ1L92nSdb3oPafKB0LPJoM4';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).json({});
+  }
+
+  if (req.method !== 'POST') {
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+
+    // Đánh dấu các webhook đã xử lý
+    const { error } = await supabase
+      .from('webhook_queue')
+      .update({ processed: true })
+      .in('id', ids);
+
+    if (error) {
+      console.error('Database error:', error);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
+      return res.status(500).json({ error: 'Failed to update', details: error.message });
+    }
+
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+
+    return res.status(200).json({ 
+      success: true,
+      message: `Marked ${ids.length} webhook(s) as processed`,
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+    
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
