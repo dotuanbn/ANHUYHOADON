@@ -48,7 +48,7 @@ const Customers = () => {
       const defaultAddress = customer.addresses.find(a => a.isDefault) || customer.addresses[0];
       setFormData({
         name: customer.name,
-        phone: customer.phone,
+        phone: customer.phone || '',
         email: customer.email || '',
         province: defaultAddress?.province || '',
         district: defaultAddress?.district || '',
@@ -87,24 +87,33 @@ const Customers = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.phone) {
+    if (!formData.name) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng điền đầy đủ tên và số điện thoại",
+        description: "Vui lòng điền tên khách hàng",
         variant: "destructive",
       });
       return;
     }
 
+    const addressParts = [
+      formData.street.trim(),
+      formData.ward.trim(),
+      formData.district.trim(),
+      formData.province.trim(),
+    ].filter(part => part.length > 0);
+
+    const fullAddress = addressParts.join(', ');
+
     const address: Address = {
       id: Date.now().toString(),
       recipientName: formData.name,
-      recipientPhone: formData.phone,
+      recipientPhone: formData.phone || '',
       province: formData.province,
       district: formData.district,
       ward: formData.ward,
       street: formData.street,
-      fullAddress: `${formData.street}, ${formData.ward}, ${formData.district}, ${formData.province}`,
+      fullAddress: fullAddress,
       isDefault: true,
     };
 
@@ -158,10 +167,11 @@ const Customers = () => {
     }
   };
 
+  const normalizedSearch = searchTerm.toLowerCase();
   const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm) ||
-    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.name.toLowerCase().includes(normalizedSearch) ||
+    (customer.phone ? customer.phone.includes(searchTerm) : false) ||
+    customer.email?.toLowerCase().includes(normalizedSearch)
   );
 
   return (
@@ -225,7 +235,7 @@ const Customers = () => {
                     filteredCustomers.map((customer) => (
                       <TableRow key={customer.id}>
                         <TableCell className="font-medium">{customer.name}</TableCell>
-                        <TableCell>{customer.phone}</TableCell>
+                        <TableCell>{customer.phone || '-'}</TableCell>
                         <TableCell>{customer.email || '-'}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
@@ -294,13 +304,12 @@ const Customers = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Số điện thoại *</Label>
+                  <Label htmlFor="phone">Số điện thoại</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="VD: 0358776696"
-                    required
                   />
                 </div>
               </div>
@@ -404,7 +413,7 @@ const Customers = () => {
                 </div>
                 <div>
                   <Label className="text-gray-600">Số điện thoại</Label>
-                  <p className="font-medium">{viewingCustomer.phone}</p>
+                  <p className="font-medium">{viewingCustomer.phone || '-'}</p>
                 </div>
               </div>
 

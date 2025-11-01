@@ -11,10 +11,22 @@ import InvoicePreview from "./components/InvoicePreview";
 import TemplateDesigner from "./pages/TemplateDesigner";
 import VisualTemplateBuilder from "./pages/VisualTemplateBuilder";
 import AdvancedInvoiceBuilder from "./pages/AdvancedInvoiceBuilder";
+import FigmaLikeBuilder from "./pages/FigmaLikeBuilder";
+import Customers from "./pages/Customers";
+import Products from "./pages/Products";
+import Settings from "./pages/Settings";
+import SyncPage from "./pages/SyncPage";
+import { useEffect } from "react";
+import { checkAndStartAutoSync } from "@/lib/autoSync";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    checkAndStartAutoSync();
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -29,11 +41,17 @@ const App = () => (
           <Route path="/template-designer" element={<TemplateDesigner />} />
           <Route path="/visual-builder" element={<VisualTemplateBuilder />} />
           <Route path="/invoice-builder" element={<AdvancedInvoiceBuilder />} />
+          <Route path="/figma-builder" element={<FigmaLikeBuilder />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/sync" element={<SyncPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
+};
 
 export default App;

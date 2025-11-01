@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Search, X, Calendar, Package, MapPin, FileText, DollarSign, Truck } from "lucide-react";
-import { Product, Customer, Order, OrderItem, OrderStatus, OrderNote } from '@/types';
-import { getProducts, getCustomers, addOrder, updateOrder, getOrderById, generateOrderNumber } from '@/lib/storage';
+import { Product, Customer, Order, OrderItem, OrderStatus, OrderNote, InvoiceSettings, DiscountType, Address } from '@/types';
+import { getProducts, getCustomers, addOrder, updateOrder, getOrderById, generateOrderNumber, addCustomer } from '@/lib/storage';
+import { getInvoiceSettings } from '@/lib/settings';
 import { useToast } from "@/hooks/use-toast";
+import { getAvailableTransitions, transitionOrderStatus, getStatusLabel, getStatusColor, autoSuggestNextAction, calculateOrderHealth } from '@/lib/orderLogic';
 
 interface OrderFormProps {
   orderId?: string;
@@ -36,7 +38,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   
   // Order info
-  const [orderNumber] = useState<string>(orderId ? '' : generateOrderNumber());
+  const [orderNumber, setOrderNumber] = useState<string>(() => (orderId ? '' : generateOrderNumber()));
   const [status, setStatus] = useState<OrderStatus>('new');
   const [assignedTo, setAssignedTo] = useState('');
   const [marketer, setMarketer] = useState('');
@@ -57,7 +59,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
   
   // Payment
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState<'percent' | 'amount'>('amount');
+  const [discountType, setDiscountType] = useState<DiscountType>('amount');
   const [shippingFee, setShippingFee] = useState(0);
   const [tax, setTax] = useState(0);
   const [additionalFee, setAdditionalFee] = useState(0);
@@ -69,18 +71,183 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
   const [currentNote, setCurrentNote] = useState('');
   const [noteType, setNoteType] = useState<'internal' | 'easy_print' | 'discussion'>('internal');
 
+  const applySettingsDefaults = useCallback((settings: InvoiceSettings) => {
+    setStatus(settings.orderDefaults.status);
+    setAssignedTo(settings.orderDefaults.assignedTo);
+    setMarketer(settings.orderDefaults.marketer);
+    setTags([...settings.orderDefaults.tags]);
+
+    setRecipientName(settings.shippingDefaults.recipientName);
+    setRecipientPhone(settings.shippingDefaults.recipientPhone);
+    setShippingAddress(settings.shippingDefaults.address);
+    setProvince(settings.shippingDefaults.province);
+    setDistrict(settings.shippingDefaults.district);
+    setWard(settings.shippingDefaults.ward);
+    setEstimatedDeliveryDate(settings.shippingDefaults.estimatedDeliveryDate);
+    setTrackingNumber(settings.shippingDefaults.trackingNumber);
+    setFreeShipping(settings.shippingDefaults.freeShipping);
+    setDimensions({
+      length: settings.shippingDefaults.dimensions.length,
+      width: settings.shippingDefaults.dimensions.width,
+      height: settings.shippingDefaults.dimensions.height,
+    });
+
+    setDiscount(settings.paymentDefaults.discountValue);
+    setDiscountType(settings.paymentDefaults.discountType);
+    setShippingFee(settings.paymentDefaults.shippingFee);
+    setTax(settings.paymentDefaults.taxRate);
+    setAdditionalFee(settings.paymentDefaults.additionalFee);
+    setBankTransfer(settings.paymentDefaults.bankTransfer);
+    setPaid(settings.paymentDefaults.paid);
+
+    const defaultNotes: OrderNote[] = [];
+    const timestamp = Date.now();
+    const nowISO = new Date().toISOString();
+
+    if (settings.notesDefaults.internal.trim()) {
+      defaultNotes.push({
+        id: `${timestamp}-internal`,
+        type: 'internal',
+        content: settings.notesDefaults.internal,
+        createdBy: 'System default',
+        createdAt: nowISO,
+      });
+    }
+
+    if (settings.notesDefaults.easyPrint.trim()) {
+      defaultNotes.push({
+        id: `${timestamp + 1}-easy`,
+        type: 'easy_print',
+        content: settings.notesDefaults.easyPrint,
+        createdBy: 'System default',
+        createdAt: nowISO,
+      });
+    }
+
+    if (settings.notesDefaults.discussion.trim()) {
+      defaultNotes.push({
+        id: `${timestamp + 2}-discussion`,
+        type: 'discussion',
+        content: settings.notesDefaults.discussion,
+        createdBy: 'System default',
+        createdAt: nowISO,
+      });
+    }
+
+    setNotes(defaultNotes);
+  }, []);
+
+  const parseAddressComponents = useCallback((input: string) => {
+    const result = {
+      street: '',
+      ward: '',
+      district: '',
+      province: '',
+    };
+
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return result;
+    }
+
+    const tokens = trimmed.split(',').map(token => token.trim()).filter(Boolean);
+
+    if (tokens.length >= 4) {
+      result.street = tokens.slice(0, tokens.length - 3).join(', ');
+      result.ward = tokens[tokens.length - 3];
+      result.district = tokens[tokens.length - 2];
+      result.province = tokens[tokens.length - 1];
+    } else {
+      result.street = tokens[0] || trimmed;
+      if (tokens.length === 3) {
+        result.district = tokens[1];
+        result.province = tokens[2];
+      } else if (tokens.length === 2) {
+        result.district = tokens[1];
+      }
+    }
+
+    const extract = (regex: RegExp) => {
+      const match = trimmed.match(regex);
+      if (!match) return '';
+
+      return match[0]
+        .replace(/^[\s,;-]+/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const wardMatch = extract(/(phường|phường|phuong|p\.|xã|xa|x\.)[\s\p{L}0-9]+/giu);
+    if (wardMatch) {
+      result.ward = wardMatch;
+    }
+
+    const districtMatch = extract(/(quận|quan|q\.|huyện|huyen|h\.)[\s\p{L}0-9]+/giu);
+    if (districtMatch) {
+      result.district = districtMatch;
+    }
+
+    const provinceMatch = extract(/(tỉnh|tinh|thành phố|thanh pho|tp\.?|tp)[\s\p{L}0-9]+/giu);
+    if (provinceMatch) {
+      result.province = provinceMatch;
+    }
+
+    return result;
+  }, []);
+
+  const buildFullAddress = (
+    streetValue: string,
+    wardValue: string,
+    districtValue: string,
+    provinceValue: string
+  ) => {
+    return [streetValue, wardValue, districtValue, provinceValue]
+      .map(part => part?.trim())
+      .filter(Boolean)
+      .join(', ');
+  };
+
+  const handleAddressBlur = useCallback(() => {
+    if (!shippingAddress.trim()) {
+      return;
+    }
+
+    const parsed = parseAddressComponents(shippingAddress);
+
+    if (parsed.street && parsed.street !== shippingAddress) {
+      setShippingAddress(parsed.street);
+    }
+
+    if (parsed.ward) {
+      setWard(parsed.ward);
+    }
+
+    if (parsed.district) {
+      setDistrict(parsed.district);
+    }
+
+    if (parsed.province) {
+      setProvince(parsed.province);
+    }
+  }, [shippingAddress, ward, district, province, parseAddressComponents]);
+
   useEffect(() => {
     setProducts(getProducts());
     setCustomers(getCustomers());
-    
+
+    const settings = getInvoiceSettings();
+
     if (orderId) {
       loadOrder(orderId);
+    } else {
+      applySettingsDefaults(settings);
     }
-  }, [orderId]);
+  }, [orderId, applySettingsDefaults]);
 
   const loadOrder = (id: string) => {
     const order = getOrderById(id);
     if (order) {
+      setOrderNumber(order.orderNumber);
       setSelectedItems(order.items);
       const customer = customers.find(c => c.id === order.customerId);
       setSelectedCustomer(customer || null);
@@ -158,11 +325,11 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
     setRecipientName(customer.name);
-    setRecipientPhone(customer.phone);
+    setRecipientPhone(customer.phone || '');
     
     if (customer.addresses.length > 0) {
       const defaultAddress = customer.addresses.find(a => a.isDefault) || customer.addresses[0];
-      setShippingAddress(defaultAddress.street);
+      setShippingAddress(defaultAddress.fullAddress || defaultAddress.street);
       setProvince(defaultAddress.province);
       setDistrict(defaultAddress.district);
       setWard(defaultAddress.ward);
@@ -206,21 +373,30 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
   const discountAmount = discountType === 'percent' 
     ? (totalAmount * discount / 100) 
     : discount;
-  const taxAmount = (totalAmount - discountAmount) * tax / 100;
+  const taxAmount = (totalAmount - discountAmount - itemDiscounts) * tax / 100;
   const finalAmount = totalAmount - discountAmount - itemDiscounts + shippingFee + taxAmount + additionalFee - bankTransfer;
-  const remaining = finalAmount - paid;
+  const remaining = Math.max(0, finalAmount - paid);
   const cod = remaining;
 
-  const handleSave = () => {
-    if (!selectedCustomer) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn khách hàng",
-        variant: "destructive",
-      });
-      return;
+  // Smart payment logic: Auto-update status when payment is complete
+  useEffect(() => {
+    if (orderId && remaining <= 0 && paid > 0 && finalAmount > 0) {
+      // If order is fully paid and status is not delivered, suggest moving to delivered
+      if (status !== 'delivered' && status !== 'cancelled' && status !== 'returned') {
+        // Don't auto-change, but we could show a suggestion
+      }
     }
+  }, [orderId, remaining, paid, finalAmount, status]);
 
+  // Auto-calculate final amount when payment inputs change
+  useEffect(() => {
+    if (paid > finalAmount && finalAmount > 0) {
+      // Don't allow paying more than final amount
+      setPaid(finalAmount);
+    }
+  }, [paid, finalAmount]);
+
+  const handleSave = () => {
     if (selectedItems.length === 0) {
       toast({
         title: "Lỗi",
@@ -230,12 +406,79 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
       return;
     }
 
+    if (!orderNumber.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập mã đơn hàng",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let customerRecord = selectedCustomer;
+    let createdCustomer: Customer | null = null;
+
+    const parsedAddress = parseAddressComponents(shippingAddress);
+    const streetComponent = parsedAddress.street || shippingAddress;
+    const wardComponent = ward || parsedAddress.ward;
+    const districtComponent = district || parsedAddress.district;
+    const provinceComponent = province || parsedAddress.province;
+    const fullAddress = buildFullAddress(streetComponent, wardComponent, districtComponent, provinceComponent);
+
+    if (!customerRecord) {
+      if (!recipientName.trim()) {
+        toast({
+          title: "Lỗi",
+          description: "Vui lòng nhập tên người nhận hoặc chọn khách hàng",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const timestamp = Date.now().toString();
+      const newAddress: Address = {
+        id: `${timestamp}-addr`,
+        recipientName: recipientName.trim(),
+        recipientPhone: recipientPhone.trim(),
+        province: provinceComponent,
+        district: districtComponent,
+        ward: wardComponent,
+        street: streetComponent,
+        fullAddress: fullAddress || streetComponent,
+        isDefault: true,
+      };
+
+      const newCustomer: Customer = {
+        id: timestamp,
+        name: recipientName.trim(),
+        phone: recipientPhone.trim(),
+        email: '',
+        addresses: [newAddress],
+        totalOrders: 0,
+        successfulOrders: 0,
+        totalSpent: 0,
+        notes: '',
+        referralCode: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      addCustomer(newCustomer);
+      setCustomers((prev) => [...prev, newCustomer]);
+      setSelectedCustomer(newCustomer);
+      customerRecord = newCustomer;
+      createdCustomer = newCustomer;
+    }
+
+    const effectiveRecipientName = recipientName.trim() || customerRecord!.name;
+    const effectiveRecipientPhone = recipientPhone.trim() || customerRecord!.phone || '';
+
     const order: Order = {
       id: orderId || Date.now().toString(),
-      orderNumber: orderId ? getOrderById(orderId)!.orderNumber : orderNumber,
-      customerId: selectedCustomer.id,
-      customerName: selectedCustomer.name,
-      customerPhone: selectedCustomer.phone,
+      orderNumber: orderNumber.trim(),
+      customerId: customerRecord!.id,
+      customerName: effectiveRecipientName,
+      customerPhone: effectiveRecipientPhone,
       items: selectedItems,
       payment: {
         totalAmount,
@@ -253,12 +496,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
       },
       shipping: {
         estimatedDeliveryDate,
-        recipientName,
-        recipientPhone,
-        address: shippingAddress,
-        province,
-        district,
-        ward,
+        recipientName: effectiveRecipientName,
+        recipientPhone: effectiveRecipientPhone,
+        address: fullAddress || shippingAddress,
+        province: provinceComponent,
+        district: districtComponent,
+        ward: wardComponent,
         trackingNumber,
         dimensions,
         freeShipping,
@@ -281,6 +524,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
       });
     } else {
       addOrder(order);
+      if (createdCustomer) {
+        toast({
+          title: "Đã lưu khách hàng mới",
+          description: `${createdCustomer.name} đã được thêm vào danh sách khách hàng`,
+        });
+      }
       toast({
         title: "Thành công",
         description: `Đơn hàng ${orderNumber} đã được tạo`,
@@ -290,15 +539,121 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
     if (onSave) onSave();
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-    p.code.toLowerCase().includes(productSearchTerm.toLowerCase())
-  );
+  const filteredProducts = useMemo(() => {
+    const term = productSearchTerm.trim().toLowerCase();
+    if (!term) {
+      return products;
+    }
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-    c.phone.includes(customerSearchTerm)
-  );
+    return products.filter((product) =>
+      product.name.toLowerCase().includes(term) ||
+      product.code.toLowerCase().includes(term)
+    );
+  }, [products, productSearchTerm]);
+
+  const productSuggestions = useMemo(() => filteredProducts.slice(0, 8), [filteredProducts]);
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearchTerm.trim().toLowerCase();
+    if (!term) {
+      return customers;
+    }
+
+    return customers.filter((customer) =>
+      customer.name.toLowerCase().includes(term) ||
+      (customer.phone ? customer.phone.includes(customerSearchTerm) : false)
+    );
+  }, [customers, customerSearchTerm]);
+
+  const handleAddProductFromSuggestion = (product: Product) => {
+    handleSelectProduct(product);
+    setProductSearchTerm('');
+  };
+
+  const handleProductSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (filteredProducts.length > 0) {
+        handleAddProductFromSuggestion(filteredProducts[0]);
+      }
+    }
+  };
+
+  const currentOrderForTransitions: Order | null = useMemo(() => {
+    if (!orderId) return null;
+    const order = getOrderById(orderId);
+    if (!order) return null;
+    
+    return {
+      ...order,
+      status,
+      items: selectedItems,
+      payment: {
+        ...order.payment,
+        paid,
+        remaining,
+      },
+      shipping: {
+        ...order.shipping,
+        recipientName,
+        recipientPhone,
+        address: shippingAddress,
+        province,
+        district,
+        ward,
+      },
+    };
+  }, [orderId, status, selectedItems, paid, remaining, recipientName, recipientPhone, shippingAddress, province, district, ward]);
+
+  const StatusTransitionButtons: React.FC<{
+    orderId: string;
+    currentStatus: OrderStatus;
+    onStatusChange: (newStatus: OrderStatus) => void;
+    compact?: boolean;
+  }> = ({ orderId, currentStatus, onStatusChange, compact = false }) => {
+    const { toast } = useToast();
+    const order = orderId ? (currentOrderForTransitions || getOrderById(orderId)) : null;
+    
+    if (!order) return null;
+    
+    const transitions = getAvailableTransitions(order);
+    const suggestion = autoSuggestNextAction(order);
+    
+    if (transitions.length === 0 && !suggestion) return null;
+    
+    return (
+      <div className={`flex flex-wrap gap-2 ${compact ? 'flex-col' : ''}`}>
+        {transitions.map((transition) => (
+          <Button
+            key={transition.to}
+            size={compact ? 'sm' : 'default'}
+            onClick={() => {
+              const result = transitionOrderStatus(orderId, transition.to);
+              if (result.success) {
+                toast({
+                  title: "Thành công",
+                  description: result.message,
+                });
+                onStatusChange(transition.to);
+              } else {
+                toast({
+                  title: "Lỗi",
+                  description: result.message,
+                  variant: "destructive",
+                });
+              }
+            }}
+            className={transition.color || 'bg-gray-600 hover:bg-gray-700'}
+          >
+            {transition.label}
+          </Button>
+        ))}
+        {suggestion && transitions.length === 0 && (
+          <p className="text-xs text-gray-500 italic">{suggestion}</p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -310,12 +665,22 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
               <CardTitle className="text-2xl">
                 {orderId ? `Sửa đơn hàng` : `Tạo đơn hàng mới`}
               </CardTitle>
-              {!orderId && <p className="text-sm text-gray-600 mt-1">#{orderNumber}</p>}
+              {orderNumber && <p className="text-sm text-gray-600 mt-1">#{orderNumber}</p>}
             </div>
-            <div className="flex space-x-2">
-              <Badge variant="outline" className="text-lg px-4 py-2">
-                {status === 'new' ? 'Mới' : status}
+            <div className="flex flex-col items-end space-y-2">
+              <Badge className={`text-lg px-4 py-2 border ${getStatusColor(status)}`}>
+                {getStatusLabel(status)}
               </Badge>
+              {orderId && (
+                <StatusTransitionButtons
+                  orderId={orderId}
+                  currentStatus={status}
+                  onStatusChange={(newStatus) => {
+                    setStatus(newStatus);
+                    if (orderId) loadOrder(orderId);
+                  }}
+                />
+              )}
             </div>
           </div>
         </CardHeader>
@@ -338,7 +703,45 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Thêm sản phẩm nhanh</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    onKeyDown={handleProductSearchKeyDown}
+                    placeholder="Nhập tên hoặc mã sản phẩm, nhấn Enter để thêm nhanh"
+                    className="pl-9"
+                  />
+                </div>
+                {productSearchTerm.trim() !== '' && (
+                  <div className="mt-2 border rounded-lg bg-white shadow-sm max-h-48 overflow-y-auto divide-y">
+                    {productSuggestions.length > 0 ? (
+                      productSuggestions.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => handleAddProductFromSuggestion(product)}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 flex items-center justify-between gap-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">{product.name}</p>
+                            <p className="text-xs text-gray-500">{product.code}</p>
+                          </div>
+                          <div className="text-sm font-semibold text-blue-600 whitespace-nowrap">
+                            {product.price.toLocaleString('vi-VN')} đ
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500">Không tìm thấy sản phẩm phù hợp</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -432,7 +835,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                         onChange={(e) => setDiscount(Number(e.target.value))}
                         min="0"
                       />
-                      <Select value={discountType} onValueChange={(v: 'percent' | 'amount') => setDiscountType(v)}>
+                      <Select value={discountType} onValueChange={(v: DiscountType) => setDiscountType(v)}>
                         <SelectTrigger className="w-20">
                           <SelectValue />
                         </SelectTrigger>
@@ -541,7 +944,9 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-semibold">{selectedCustomer.name}</p>
-                      <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                      {selectedCustomer.phone && (
+                        <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                      )}
                       {selectedCustomer.email && (
                         <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
                       )}
@@ -572,14 +977,19 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                   </div>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setIsCustomerDialogOpen(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Chọn khách hàng
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setIsCustomerDialogOpen(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Chọn khách hàng
+                  </Button>
+                  <p className="text-[11px] text-gray-500 text-center">
+                    Có thể bỏ qua bước này và nhập trực tiếp thông tin người nhận ở phần bên dưới. Hệ thống sẽ tự lưu khách hàng mới sau khi bạn lưu đơn.
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -616,10 +1026,14 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 <Textarea
                   value={shippingAddress}
                   onChange={(e) => setShippingAddress(e.target.value)}
-                  placeholder="Địa chỉ chi tiết"
+                  onBlur={handleAddressBlur}
+                  placeholder="Nhập địa chỉ chi tiết (có thể gõ liền, hệ thống sẽ tách khu vực nếu nhận diện được)"
                   className="text-sm"
                   rows={2}
                 />
+                <p className="text-[11px] text-gray-500">
+                  Ví dụ: "123 Đường ABC, Phường 5, Quận 3, TP HCM". Khi nhập, hệ thống sẽ tự điền Phường/Quận/Tỉnh nếu có thể nhận diện.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Phường/Xã</Label>
@@ -703,6 +1117,46 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
               <CardTitle className="text-lg">Thông tin khác</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Mã đơn hàng</Label>
+                <Input
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(e.target.value)}
+                  placeholder="VD: DH251028000044"
+                  className="text-sm"
+                />
+              </div>
+              {orderId && (
+                <div className="space-y-2 pb-3 border-b">
+                  <Label className="text-xs font-semibold">Chuyển trạng thái</Label>
+                  <StatusTransitionButtons
+                    orderId={orderId}
+                    currentStatus={status}
+                    onStatusChange={(newStatus) => {
+                      setStatus(newStatus);
+                      loadOrder(orderId);
+                    }}
+                    compact={true}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label className="text-xs">Trạng thái</Label>
+                <Select value={status} onValueChange={(value) => setStatus(value as OrderStatus)}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Mới</SelectItem>
+                    <SelectItem value="confirmed">Đã xác nhận</SelectItem>
+                    <SelectItem value="processing">Đang xử lý</SelectItem>
+                    <SelectItem value="shipping">Đang giao</SelectItem>
+                    <SelectItem value="delivered">Đã giao</SelectItem>
+                    <SelectItem value="cancelled">Đã hủy</SelectItem>
+                    <SelectItem value="returned">Trả hàng</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label className="text-xs">NV chăm sóc</Label>
                 <Input
@@ -898,7 +1352,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ orderId, onSave, onCancel 
                 {filteredCustomers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>{customer.phone || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {customer.successfulOrders}/{customer.totalOrders}

@@ -4,6 +4,21 @@
 
 **🚀 Live Site**: https://anhuyhoadon-g3gc.vercel.app
 
+## ⭐ NEW: Advanced Invoice Builder V2.0!
+
+**🎨 Professional Visual Editor**: [/invoice-builder](http://localhost:5173/invoice-builder)
+
+### 🆕 What's New in V2.0:
+- ✅ **Preview Mode** (Ctrl+P) - Xem trước invoice
+- ✅ **Save Templates** (Ctrl+S) - Lưu thiết kế
+- ✅ **Load Templates** - Grid view tất cả templates
+- ✅ **Context Menu** - Right-click actions
+- ✅ **7 Keyboard Shortcuts** - Làm việc nhanh 10x
+- ✅ **Professional UX/UI** - Polished & Beautiful
+
+👉 **Quick Start**: See [`START_HERE_V2.md`](./START_HERE_V2.md)  
+📖 **Full Guide**: See [`USER_GUIDE_V2.md`](./USER_GUIDE_V2.md)
+
 ## 📦 Project Info
 
 - **Platform**: Vercel

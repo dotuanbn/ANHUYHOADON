@@ -1,6 +1,7 @@
 // Local storage utilities for the order management system
 
 import { Product, Customer, Order } from '@/types';
+import { getInvoiceSettings, updateInvoiceSettings, formatOrderNumber } from '@/lib/settings';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'products',
@@ -120,8 +121,11 @@ export const getCustomerById = (id: string): Customer | null => {
 };
 
 export const getCustomerByPhone = (phone: string): Customer | null => {
+  if (!phone) {
+    return null;
+  }
   const customers = getCustomers();
-  return customers.find(c => c.phone === phone) || null;
+  return customers.find(c => c.phone && c.phone === phone) || null;
 };
 
 // Orders
@@ -147,7 +151,31 @@ export const updateOrder = (id: string, updates: Partial<Order>): void => {
   const index = orders.findIndex(o => o.id === id);
   if (index !== -1) {
     const oldOrder = orders[index];
-    orders[index] = { ...oldOrder, ...updates, updatedAt: new Date().toISOString() };
+    const newOrder = { ...oldOrder, ...updates, updatedAt: new Date().toISOString() };
+    
+    // Smart logic: Auto-update related fields when status changes
+    if (updates.status && updates.status !== oldOrder.status) {
+      // When order is delivered, mark payment as complete if fully paid
+      if (updates.status === 'delivered' && newOrder.payment.paid >= newOrder.payment.finalAmount) {
+        newOrder.payment.remaining = 0;
+      }
+      
+      // When order is cancelled, reset payment if not delivered
+      if (updates.status === 'cancelled' && oldOrder.status !== 'delivered') {
+        if (oldOrder.payment.paid === 0) {
+          // Keep as is
+        }
+      }
+    }
+    
+    // Auto-update shipping estimated date when moving to shipping
+    if (updates.status === 'shipping' && !newOrder.shipping.estimatedDeliveryDate) {
+      const defaultDeliveryDate = new Date();
+      defaultDeliveryDate.setDate(defaultDeliveryDate.getDate() + 3); // Default 3 days
+      newOrder.shipping.estimatedDeliveryDate = defaultDeliveryDate.toISOString().split('T')[0];
+    }
+    
+    orders[index] = newOrder;
     saveOrders(orders);
     
     // Update customer statistics if needed
@@ -181,21 +209,27 @@ export const getOrdersByCustomer = (customerId: string): Order[] => {
 
 // Order number generation
 export const generateOrderNumber = (): string => {
-  const counter = storage.get<number>(STORAGE_KEYS.ORDER_COUNTER) || 0;
-  const newCounter = counter + 1;
+  const settings = getInvoiceSettings();
+  const storedCounter = storage.get<number>(STORAGE_KEYS.ORDER_COUNTER);
+  const baseCounter = typeof storedCounter === 'number' && storedCounter >= 0
+    ? storedCounter
+    : settings.numbering.nextNumber - 1;
+  const newCounter = Math.max(1, baseCounter + 1);
+
   storage.set(STORAGE_KEYS.ORDER_COUNTER, newCounter);
-  
-  const date = new Date();
-  const year = date.getFullYear().toString().slice(-2);
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const orderNum = newCounter.toString().padStart(6, '0');
-  
-  return `DH${year}${month}${day}${orderNum}`;
+
+  updateInvoiceSettings({
+    numbering: {
+      ...settings.numbering,
+      nextNumber: newCounter + 1,
+    },
+  });
+
+  return formatOrderNumber(settings, newCounter);
 };
 
 // Customer statistics update
-const updateCustomerStats = (customerId: string): void => {
+export const updateCustomerStats = (customerId: string): void => {
   const customer = getCustomerById(customerId);
   if (!customer) return;
   

@@ -5,13 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, ArrowLeft, Eye, Edit, Printer } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, Filter, ArrowLeft, Eye, Edit, Printer, MoreVertical, CheckCircle, Truck, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Order, OrderStatus } from '@/types';
-import { getOrders } from '@/lib/storage';
+import { getOrders, updateOrder } from '@/lib/storage';
+import { getAvailableTransitions, transitionOrderStatus, getStatusLabel, getStatusColor } from '@/lib/orderLogic';
+import { useToast } from "@/hooks/use-toast";
 
 const OrdersPage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
@@ -26,6 +30,23 @@ const OrdersPage = () => {
     setOrders(loadedOrders.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ));
+  };
+
+  const handleStatusTransition = (orderId: string, newStatus: OrderStatus) => {
+    const result = transitionOrderStatus(orderId, newStatus);
+    if (result.success) {
+      toast({
+        title: "Thành công",
+        description: result.message,
+      });
+      loadOrders();
+    } else {
+      toast({
+        title: "Lỗi",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -212,11 +233,11 @@ const OrdersPage = () => {
                         </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(order.status)}>
-                            {getStatusText(order.status)}
+                            {getStatusLabel(order.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
+                          <div className="flex justify-end items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -233,14 +254,31 @@ const OrdersPage = () => {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.print()}
-                              title="In đơn hàng"
-                            >
-                              <Printer className="w-4 h-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" title="Thao tác khác">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {getAvailableTransitions(order).map((transition) => (
+                                  <DropdownMenuItem
+                                    key={transition.to}
+                                    onClick={() => handleStatusTransition(order.id, transition.to)}
+                                    className="cursor-pointer"
+                                  >
+                                    {transition.label}
+                                  </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuItem
+                                  onClick={() => window.print()}
+                                  className="cursor-pointer"
+                                >
+                                  <Printer className="w-4 h-4 mr-2" />
+                                  In đơn hàng
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>

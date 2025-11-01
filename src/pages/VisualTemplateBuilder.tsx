@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   ArrowLeft, Save, Eye, Trash2, Copy, Settings2,
-  Type, Hash, FileText, User, Table, DollarSign, AlignBottom, Plus
+  Type, Hash, FileText, User, Table, DollarSign, AlignVerticalJustifyEnd, Plus
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -69,7 +69,7 @@ const COMPONENTS = [
   { id: 'customer-info', label: 'Customer Info', description: 'Customer details', icon: User },
   { id: 'products-table', label: 'Products Table', description: 'Products list', icon: Table },
   { id: 'payment-summary', label: 'Payment Summary', description: 'Total, paid, remaining', icon: DollarSign },
-  { id: 'footer', label: 'Footer', description: 'Footer text', icon: AlignBottom },
+  { id: 'footer', label: 'Footer', description: 'Footer text', icon: AlignVerticalJustifyEnd },
 ];
 
 const VisualTemplateBuilder = () => {

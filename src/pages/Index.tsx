@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Users, Package, Settings, Eye, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getOrders, initializeSampleData } from '@/lib/storage';
 import { Order } from '@/types';
+import { getStatusLabel, getStatusColor } from '@/lib/orderLogic';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -38,13 +40,9 @@ const Index = () => {
                 <Plus className="w-4 h-4 mr-2" />
                 Tạo hóa đơn mới
               </Button>
-              <Button variant="outline" onClick={() => navigate('/invoice-builder')} className="border-purple-200 hover:bg-purple-50">
+              <Button variant="outline" onClick={() => navigate('/settings')} className="border-gray-200 hover:bg-gray-50">
                 <Settings className="w-4 h-4 mr-2" />
-                Invoice Builder 
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/visual-builder')}>
-                <Edit className="w-4 h-4 mr-2" />
-                Simple Builder
+                Cài đặt hệ thống
               </Button>
             </div>
           </div>
@@ -102,7 +100,7 @@ const Index = () => {
             <CardTitle>Thao tác nhanh</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Button
                 variant="outline"
                 className="h-24 flex flex-col items-center justify-center space-y-2"
@@ -138,6 +136,15 @@ const Index = () => {
                 <Package className="w-8 h-8 text-orange-600" />
                 <span className="text-sm">Sản phẩm</span>
               </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="w-8 h-8 text-gray-600" />
+                <span className="text-sm">Cài đặt</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -161,13 +168,28 @@ const Index = () => {
             ) : (
               <div className="space-y-3">
                 {orders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                     <div className="flex-1">
-                      <p className="font-semibold">{order.orderNumber}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold">{order.orderNumber}</p>
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
+                      </div>
                       <p className="text-sm text-gray-600">{order.customerName} - {order.customerPhone}</p>
+                      {order.payment.remaining > 0 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Còn nợ: {order.payment.remaining.toLocaleString('vi-VN')} đ
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-4">
-                      <p className="text-lg font-bold text-blue-600">{order.payment.finalAmount.toLocaleString('vi-VN')} đ</p>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-blue-600">{order.payment.finalAmount.toLocaleString('vi-VN')} đ</p>
+                        {order.payment.remaining > 0 && (
+                          <p className="text-xs text-gray-500">Đã trả: {order.payment.paid.toLocaleString('vi-VN')} đ</p>
+                        )}
+                      </div>
                       <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate(`/invoice/edit/${order.id}`)}>
                         <Edit className="w-4 h-4 mr-1" />
                         Sửa

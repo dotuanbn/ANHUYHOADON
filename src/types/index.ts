@@ -13,10 +13,22 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface CompanyInfo {
+  name: string;
+  address: string;
+  website: string;
+  phone: string;
+  email: string;
+  taxCode: string;
+  bankAccount: string;
+  bankName: string;
+  accountHolder: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
   email?: string;
   addresses: Address[];
   totalOrders: number;
@@ -136,4 +148,67 @@ export interface Statistics {
   topCustomers: { customerId: string; orders: number; revenue: number }[];
 }
 
+export type DiscountType = 'amount' | 'percent';
+
+export interface InvoiceNumberingSettings {
+  prefix: string;
+  suffix: string;
+  includeDate: boolean;
+  dateFormat: 'YYMMDD' | 'YYYYMMDD' | 'YYMM' | 'YYYYMM' | 'YYYY';
+  padding: number;
+  nextNumber: number;
+}
+
+export interface PaymentDefaultSettings {
+  discountType: DiscountType;
+  discountValue: number;
+  taxRate: number;
+  shippingFee: number;
+  additionalFee: number;
+  bankTransfer: number;
+  paid: number;
+}
+
+export interface ShippingDimensionDefaults {
+  length: number;
+  width: number;
+  height: number;
+}
+
+export interface ShippingDefaultSettings {
+  recipientName: string;
+  recipientPhone: string;
+  address: string;
+  ward: string;
+  district: string;
+  province: string;
+  freeShipping: boolean;
+  estimatedDeliveryDate: string;
+  trackingNumber: string;
+  dimensions: ShippingDimensionDefaults;
+}
+
+export interface OrderMetaDefaults {
+  status: OrderStatus;
+  assignedTo: string;
+  marketer: string;
+  tags: string[];
+}
+
+export interface NotesDefaultSettings {
+  internal: string;
+  easyPrint: string;
+  discussion: string;
+}
+
+export interface InvoiceSettings {
+  numbering: InvoiceNumberingSettings;
+  paymentDefaults: PaymentDefaultSettings;
+  shippingDefaults: ShippingDefaultSettings;
+  orderDefaults: OrderMetaDefaults;
+  notesDefaults: NotesDefaultSettings;
+}
+
+// Export Pancake types
+export * from './pancake';
 
