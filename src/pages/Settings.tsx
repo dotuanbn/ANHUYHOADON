@@ -16,6 +16,8 @@ import {
   getInvoiceSettings,
   saveInvoiceSettings,
   resetInvoiceSettings,
+  getDefaultInvoiceSettings,
+  getDefaultCompanyInfo,
   formatOrderNumber,
   syncOrderCounterWithSettings,
 } from "@/lib/settings";
@@ -258,14 +260,52 @@ const Settings = () => {
         }
 
         if (data.companyInfo && typeof data.companyInfo === 'object') {
-          saveCompanyInfo(data.companyInfo);
+          // Normalize companyInfo với default values
+          const defaultCompanyInfo = getDefaultCompanyInfo();
+          const normalizedCompanyInfo: CompanyInfo = {
+            ...defaultCompanyInfo,
+            ...data.companyInfo,
+          };
+          saveCompanyInfo(normalizedCompanyInfo);
           setCompanyInfo(getCompanyInfo());
           importedItems.push('thông tin công ty');
           importedCount++;
         }
 
         if (data.invoiceSettings && typeof data.invoiceSettings === 'object') {
-          saveInvoiceSettings(data.invoiceSettings);
+          // Normalize invoiceSettings với default values để đảm bảo có đầy đủ cấu trúc
+          const defaultSettings = getDefaultInvoiceSettings();
+          const normalizedSettings: InvoiceSettings = {
+            numbering: {
+              ...defaultSettings.numbering,
+              ...(data.invoiceSettings.numbering || {}),
+            },
+            paymentDefaults: {
+              ...defaultSettings.paymentDefaults,
+              ...(data.invoiceSettings.paymentDefaults || {}),
+            },
+            shippingDefaults: {
+              ...defaultSettings.shippingDefaults,
+              ...(data.invoiceSettings.shippingDefaults || {}),
+              dimensions: {
+                ...defaultSettings.shippingDefaults.dimensions,
+                ...(data.invoiceSettings.shippingDefaults?.dimensions || {}),
+              },
+            },
+            orderDefaults: {
+              ...defaultSettings.orderDefaults,
+              ...(data.invoiceSettings.orderDefaults || {}),
+              tags: Array.isArray(data.invoiceSettings.orderDefaults?.tags)
+                ? data.invoiceSettings.orderDefaults.tags
+                : defaultSettings.orderDefaults.tags,
+            },
+            notesDefaults: {
+              ...defaultSettings.notesDefaults,
+              ...(data.invoiceSettings.notesDefaults || {}),
+            },
+          };
+          
+          saveInvoiceSettings(normalizedSettings);
           const refreshedSettings = getInvoiceSettings();
           setInvoiceSettings(refreshedSettings);
           setTagsInput(refreshedSettings.orderDefaults.tags.join(', '));
