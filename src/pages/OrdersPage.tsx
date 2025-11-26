@@ -14,6 +14,7 @@ import { getOrders, deleteOrder } from '@/lib/storage';
 import { getAvailableTransitions, transitionOrderStatus, getStatusLabel, getStatusColor } from '@/lib/orderLogic';
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { OrderImporter } from "@/components/OrderImporter";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
@@ -310,6 +311,7 @@ const OrdersPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <OrderImporter onImportComplete={loadOrders} />
               </div>
               {selectedCount > 0 && (
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between border border-blue-200 bg-blue-50/70 dark:border-blue-700 dark:bg-blue-950/30 rounded-lg p-3">
